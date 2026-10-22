@@ -14,7 +14,7 @@ anything else goes into a later milestone or the backlog.
 
 **Done when:** a clean checkout builds, tests run (even if trivial), and the window opens.
 
-## M2 — SMI parser and resolver
+## M2 — SMI parser and resolver ✅
 
 - Lexer: identifiers, numbers, hex/binary strings, quoted strings (multi-line), `--` comments, symbols.
 - Parser (hand-written recursive descent) producing an AST per module:

@@ -27,6 +27,7 @@
 | `app`      | JavaFX user interface                       | `core`, JavaFX      |
 
 `core` has no JavaFX dependency so it can be tested headless and reused (for example by a future CLI).
+It exports only `core.mib` and `core.mib.model`; `core.mib.parse` and `core.mib.resolve` are internal.
 
 ## Packages
 
@@ -34,9 +35,10 @@ Base package: `hr.avrbanac.snmptool`.
 
 | Package                  | Responsibility                                                    |
 |--------------------------|-------------------------------------------------------------------|
+| `core.mib`               | Public entry points: `MibLoader`, `MibSource`, `BundledMibs`       |
 | `core.mib.parse`         | Tokens, lexer, recursive-descent parser, AST, diagnostics         |
 | `core.mib.resolve`       | Turns ASTs from many modules into a resolved model                |
-| `core.mib.model`         | Immutable resolved model: modules, nodes, types, the OID tree     |
+| `core.mib.model`         | Immutable resolved model: modules, nodes, types, the OID tree, `Oid`, diagnostics |
 | `core.mib.repo`          | On-disk MIB store, index, dependency graph, import/update/remove  |
 | `core.snmp`              | SNMP4J wrapper: sessions, profiles, operations, value decoding    |
 | `app`                    | Application entry point, main window                              |

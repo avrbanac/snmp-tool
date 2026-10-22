@@ -3,5 +3,6 @@
  * Has no JavaFX dependency.
  */
 module hr.avrbanac.snmptool.core {
+    exports hr.avrbanac.snmptool.core.mib;
     exports hr.avrbanac.snmptool.core.mib.model;
 }

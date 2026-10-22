@@ -24,3 +24,23 @@ initial development phase.
   details pane (right), operations pane (bottom), plus menu bar (File, Help → About) and status bar.
 - `Oid` value type for numeric object identifiers (parsing, parent/child navigation, prefix checks,
   walk ordering), with unit tests.
+
+### M2 — SMI parser and resolver
+
+- In-house MIB parser for SMIv1 and SMIv2: lexer, hand-written recursive-descent parser and AST covering
+  IMPORTS, MODULE-IDENTITY, OBJECT-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE, TRAP-TYPE, TEXTUAL-CONVENTION,
+  groups, compliance and capability statements, and type assignments (SEQUENCE, CHOICE, enumerations,
+  BITS, size and range constraints).
+- Lenient parsing: problems become diagnostics with file, line and column; broken definitions are skipped
+  and parsing continues with the next one. Common vendor mistakes (missing `;` after IMPORTS, keyword case,
+  missing commas, missing END, unimported names) are accepted with a warning.
+- Resolver: imports across modules, object identifiers (forward and cross-module references, cycle
+  detection), types through textual conventions down to SMI base types, effective constraints, enumerations
+  and display hints. OBJECT-TYPEs are classified as table, row, column or scalar; SMIv1 traps are placed
+  at `enterprise.0.n`.
+- Resolved, immutable model (`MibModel`, `MibModule`, `MibNode`, `MibType`) and a merged `OidTree` with
+  lookup by OID, name, `MODULE::name` and longest prefix (for instance OIDs). SMIv2 definitions take
+  precedence over SMIv1 ones at the same OID.
+- 61 bundled IETF and IANA MIB modules (SMI, SNMPv2-MIB, IF-MIB, IP-MIB, HOST-RESOURCES-MIB, SNMP framework
+  and security MIBs, DISMAN, RMON, ...), all loading without diagnostics.
+- Tests for the lexer, parser, error recovery, resolver and the bundled MIBs.
