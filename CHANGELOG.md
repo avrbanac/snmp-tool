@@ -11,8 +11,8 @@ initial development phase.
 
 ## [0.1.0] - in development
 
-Done: M1–M4 (project skeleton, MIB parser and resolver, MIB browser, MIB import). Next: M5 (SNMP
-operations).
+Done: M1–M5 (project skeleton, MIB parser and resolver, MIB browser, MIB import, SNMP operations). Next: M6
+(polish and packaging).
 
 ### M1 — Project skeleton
 
@@ -107,3 +107,26 @@ operations).
   guide (testing, manual checks) and CLAUDE.md rules (test isolation from `~/.snmp-tool`, large sets).
 - Repository tests covering new, identical, newer, older and changed imports, bundled overrides, removal,
   missing dependencies, multi-module files, folder scans and problem reporting.
+
+### M5 — SNMP operations
+
+- SNMP client in `core.snmp` on SNMP4J 3.13 (kept internal): `SnmpSession` with get, getNext, walk (GETBULK,
+  streamed in batches, cancellable, single-GET fallback for scalar instances) and set, over v2c and v3.
+- SNMPv3 USM with all security levels; authentication MD5, SHA-1, SHA-224/256/384/512; privacy DES, 3DES,
+  AES-128/192/256; context name and engine ID. Each session has its own USM; nothing is shared globally.
+- Clear errors: timeouts with hints on what to check, error-status with the failing OID, v3 reports
+  (unknown user, wrong digest, decryption error, ...), unknown hosts and invalid settings.
+- MIB-aware results: instance names with decoded table indexes (integer, IpAddress, fixed-size,
+  length-prefixed and IMPLIED strings, OIDs, AUGMENTS rows), enumeration labels, BITS names, RFC 2579
+  DISPLAY-HINT formatting, TimeTicks durations, UNITS and symbolic OIDs, plus the raw value.
+- Set input parsing and validation against the MIB type: enumeration labels or numbers, ranges, sizes, BITS,
+  text or hex octets, symbolic OIDs, IP addresses.
+- Operations panel: device chooser with new/edit/remove, OID field filled from the tree selection (scalars
+  get `.0`), Get / Get Next (steps on) / Walk / Set… / Stop, status with timing, results table (name,
+  value, type, OID, raw) with "Show in tree", "Use as OID", "Set…" and copy actions.
+- Device dialog with v2c and v3 settings, masked secrets with a show toggle, live validation and a
+  connection test; set dialog prefilled with the current value, type chooser, enumeration list, hex
+  toggle, live validation and a read-only warning. Device profiles are kept in memory for now.
+- Fixed: the details pane could keep showing the previous definition's fields (cached scroll viewport).
+- In-process SNMP test agent and tests for sessions (v2c and all v3 levels), display hints, result
+  formatting and set input parsing.

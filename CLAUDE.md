@@ -50,6 +50,8 @@ Read the document relevant to the task before changing code:
 - Keep large MIB sets in mind (see Performance in `docs/architecture.md`): no per-node or per-module work
   that scans all modules, and nothing proportional to the model size on the JavaFX thread.
 - Long-running work (MIB loading, SNMP requests) never runs on the JavaFX application thread.
+- SNMP4J stays inside `core.snmp`; the public API uses `SnmpValue`, `VarBindResult` and `SnmpException`.
+  Secrets (communities, passphrases) are never logged or included in `toString()`.
 - Version stays `0.1.0` during initial development. Record changes in `CHANGELOG.md` under `[0.1.0]`,
   in the section of the current milestone (`### M<n> — <title>`), as a general summary of what was built.
 - Keep docs in `docs/` in sync when a design changes.

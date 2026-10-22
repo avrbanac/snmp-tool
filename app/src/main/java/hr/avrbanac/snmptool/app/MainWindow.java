@@ -3,6 +3,7 @@ package hr.avrbanac.snmptool.app;
 import hr.avrbanac.snmptool.app.details.DetailsPane;
 import hr.avrbanac.snmptool.app.mibs.MibController;
 import hr.avrbanac.snmptool.app.mibs.ModulesWindow;
+import hr.avrbanac.snmptool.app.ops.OperationsPanel;
 import hr.avrbanac.snmptool.app.tree.MibTreeView;
 import hr.avrbanac.snmptool.core.mib.model.MibModel;
 import hr.avrbanac.snmptool.core.mib.repo.MibRepository;
@@ -23,7 +24,6 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
 /**
@@ -41,6 +41,7 @@ final class MainWindow {
     private final MibTreeView treeView = new MibTreeView();
     private final DetailsPane detailsPane = new DetailsPane();
     private final MibController mibs = new MibController(new MibRepository(MibRepository.defaultDirectory()));
+    private final OperationsPanel operations = new OperationsPanel(treeView::showOid);
     private ModulesWindow modulesWindow;
 
     MainWindow(Stage stage) {
@@ -54,7 +55,11 @@ final class MainWindow {
                 e.consume();
             }
         });
-        treeView.selectedNodeProperty().addListener((_, _, node) -> detailsPane.show(node));
+        treeView.selectedNodeProperty().addListener((_, _, node) -> {
+            detailsPane.show(node);
+            operations.setSelectedNode(node);
+        });
+        stage.setOnHidden(_ -> operations.close());
         mibs.modelProperty().addListener((_, _, model) -> showModel(model));
         status.textProperty().bind(mibs.statusProperty());
         problems.setOnAction(_ -> showModules(true));
@@ -68,6 +73,7 @@ final class MainWindow {
 
     private void showModel(MibModel model) {
         detailsPane.setModel(model);
+        operations.setModel(model);
         treeView.setModel(model, mibs.search());
         problems.setText(MibController.problems(model.diagnostics()));
         problems.setVisible(true);
@@ -111,19 +117,10 @@ final class MainWindow {
         SplitPane browser = new SplitPane(treeView.root(), detailsPane.root());
         browser.setDividerPositions(0.35);
 
-        SplitPane content = new SplitPane(browser, createOperationsPane());
+        SplitPane content = new SplitPane(browser, operations.root());
         content.setOrientation(Orientation.VERTICAL);
-        content.setDividerPositions(0.75);
+        content.setDividerPositions(0.6);
         return content;
-    }
-
-    private Parent createOperationsPane() {
-        Label label = new Label("SNMP operations (get, getNext, walk, set) will appear here.");
-        label.getStyleClass().add("placeholder");
-        label.setWrapText(true);
-        StackPane pane = new StackPane(label);
-        pane.getStyleClass().add("pane");
-        return pane;
     }
 
     private Parent createStatusBar() {

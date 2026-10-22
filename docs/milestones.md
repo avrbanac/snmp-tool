@@ -56,9 +56,9 @@ anything else goes into a later milestone or the backlog.
 
 **Done when:** vendor MIBs can be imported, updated and removed, and the tree reflects the change.
 
-## M5 — SNMP operations
+## M5 — SNMP operations ✅
 
-- Device profiles: host, port, timeout, retries, version.
+- Device profiles: host, port, timeout, retries, max-repetitions, version (kept in memory; saved in M6).
 - v2c: community strings (read and write).
 - v3: USM user, security level, auth protocol and key, privacy protocol and key, context.
 - Operations from the selected node: get, getNext, walk (GETBULK for v2c/v3), set.
@@ -68,6 +68,7 @@ anything else goes into a later milestone or the backlog.
 - Cancel for running walks.
 
 **Done when:** all four operations work against a real or simulated agent for v2c and v3.
+(Verified against the in-process test agent, including every v3 security level.)
 
 ## M6 — Polish and packaging
 

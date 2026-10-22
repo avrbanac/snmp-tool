@@ -57,7 +57,8 @@ Compilation uses `-Xlint:all -Werror`, so warnings fail the build.
 - Repository tests use `@TempDir`; nothing in tests may touch the real `~/.snmp-tool`.
 - UI logic that can be separated from JavaFX rendering (e.g. `FilteredTree`, `TextFormat`) has unit tests
   in `app`.
-- SNMP tests (M5) run against an in-process SNMP4J agent; no external devices in automated tests.
+- SNMP tests run against `TestAgent`, an in-process SNMP4J agent on 127.0.0.1 (v2c and v3 users for every
+  security level); no external devices in automated tests.
 
 ## Manual checks
 

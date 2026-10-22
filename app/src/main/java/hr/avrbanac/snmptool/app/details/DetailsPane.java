@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.geometry.VPos;
+import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
@@ -46,7 +47,8 @@ public final class DetailsPane {
     private final Label title = new Label();
     private final Label subtitle = new Label();
     private final ComboBox<MibNode> definitions = new ComboBox<>();
-    private final GridPane grid = new GridPane();
+    private final ScrollPane gridScroll = new ScrollPane();
+    private final GridPane grid = newGrid();
     private final Label descriptionTitle = new Label("Description");
     private final TextArea description = new TextArea();
     private MibModel model;
@@ -79,15 +81,18 @@ public final class DetailsPane {
         VBox header = new VBox(4, titleRow, subtitle, definitions);
         header.getStyleClass().add("details-header");
 
-        grid.getStyleClass().add("details-grid");
-        ColumnConstraints keys = new ColumnConstraints();
-        keys.setMinWidth(Region.USE_PREF_SIZE);
-        ColumnConstraints values = new ColumnConstraints();
-        values.setHgrow(Priority.ALWAYS);
-        values.setFillWidth(true);
-        grid.getColumnConstraints().addAll(keys, values);
-        ScrollPane gridScroll = new ScrollPane(grid);
+        gridScroll.setContent(grid);
         gridScroll.setFitToWidth(true);
+        // The scroll pane skin caches its viewport as a bitmap, which was seen to keep showing the previous
+        // definition's rows after an update; the grid is small, so caching gains nothing.
+        gridScroll.skinProperty().addListener((_, _, skin) -> {
+            if (skin != null) {
+                Node viewport = gridScroll.lookup(".viewport");
+                if (viewport != null) {
+                    viewport.setCache(false);
+                }
+            }
+        });
 
         descriptionTitle.getStyleClass().add("details-key");
         description.setEditable(false);
@@ -109,6 +114,18 @@ public final class DetailsPane {
 
     public Parent root() {
         return root;
+    }
+
+    private static GridPane newGrid() {
+        GridPane g = new GridPane();
+        g.getStyleClass().add("details-grid");
+        ColumnConstraints keys = new ColumnConstraints();
+        keys.setMinWidth(Region.USE_PREF_SIZE);
+        ColumnConstraints values = new ColumnConstraints();
+        values.setHgrow(Priority.ALWAYS);
+        values.setFillWidth(true);
+        g.getColumnConstraints().addAll(keys, values);
+        return g;
     }
 
     public void setModel(MibModel model) {

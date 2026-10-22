@@ -6,8 +6,8 @@ The focus is on **browsing MIBs**: import MIB files, see every loaded module mer
 and read the full definition of any node (OID, syntax, access, status, description). On top of the browser,
 the tool offers **get, getNext, walk and set** against a single device over SNMP v2c or v3.
 
-> Status: initial development (version 0.1.0). The MIB browser and MIB import are done (milestones M1–M4);
-> SNMP operations (M5) and packaging (M6) are next. See [docs/milestones.md](docs/milestones.md).
+> Status: initial development (version 0.1.0). The MIB browser, MIB import and SNMP operations are done
+> (milestones M1–M5); polish and packaging (M6) are next. See [docs/milestones.md](docs/milestones.md).
 
 ## Features
 
@@ -28,8 +28,12 @@ the tool offers **get, getNext, walk and set** against a single device over SNMP
 - **Bundled MIBs:** 61 standard IETF and IANA modules (`SNMPv2-SMI`, `SNMPv2-TC`, `IF-MIB`, `IP-MIB`,
   `HOST-RESOURCES-MIB`, ...).
 - **Large sets:** tested with the LibreNMS collection (4,700+ vendor modules).
-- **SNMP operations** *(planned, M5)*: get, getNext, walk and set on a selected node, using v2c
-  (community) or v3 (USM authentication and privacy), with results decoded using the MIBs.
+- **SNMP operations:** get, getNext, walk (GETBULK, cancellable) and set on the selected node or any OID,
+  over v2c (communities) or v3 (USM: MD5/SHA-1/SHA-2 authentication, DES/3DES/AES privacy).
+- **Decoded results:** instance names with decoded table indexes (`ifDescr.3`, `vacmGroupName.3."public"`),
+  enumeration labels, BITS, display hints (MAC addresses, DateAndTime), TimeTicks, units and symbolic OIDs.
+- **Set dialog:** prefilled with the current value, validated against the MIB type (enumerations, ranges,
+  sizes), text or hex input.
 
 Imported MIBs are stored in `~/.snmp-tool/mibs/`.
 

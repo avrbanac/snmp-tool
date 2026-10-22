@@ -127,6 +127,30 @@ public final class MibTreeView {
         applySearch();
     }
 
+    /**
+     * Selects the deepest definition at or above the OID in the full tree, clearing any search. Used to jump from
+     * an SNMP result (an instance OID) to its MIB object.
+     */
+    public void showOid(Oid oid) {
+        if (model == null) {
+            return;
+        }
+        Optional<Oid> target = model.tree().find(oid).filter(n -> n.definition().isPresent()).map(OidTree.Node::oid)
+                .or(() -> model.tree().longestPrefix(oid).map(OidTree.Node::oid));
+        if (target.isEmpty()) {
+            return;
+        }
+        if (filtered) {
+            search.clear();
+            debounce.stop();
+            matches.clear();
+            filtered = false;
+            matchCount.setVisible(false);
+            showFullTree();
+        }
+        reveal(target.get(), true);
+    }
+
     public void focusSearch() {
         search.requestFocus();
         search.selectAll();

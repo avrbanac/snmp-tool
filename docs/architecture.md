@@ -6,7 +6,8 @@
 ┌──────────────────────────── app (JavaFX) ─────────────────────────────┐
 │  MainWindow                                                           │
 │  ├─ MibTreeView (search, FilteredTree) ──── DetailsPane               │
-│  └─ OperationsPanel ── ResultsTable                         (M5)      │
+│  └─ OperationsPanel (device, OID, results) ── DeviceProfileDialog,    │
+│                                                SetDialog              │
 │  MibController ── ImportDialog, ModulesWindow (modules / problems)    │
 └────────────────┬──────────────────────────────────────┬───────────────┘
                  │ public API                           │
@@ -16,7 +17,8 @@
 │  mib.resolve  Resolver, ModuleNames                       (internal)  │
 │  mib.model    MibModel, MibModule, MibNode, MibType, OidTree, Oid     │
 │  mib.repo     MibRepository, ImportPlan, ModuleEntry                  │
-│  snmp         SnmpClient, DeviceProfile, VarBindResult        (M5)    │
+│  snmp         SnmpSession, DeviceProfile, SnmpValue, ResultFormatter, │
+│               ValueParser, DisplayHint                                │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -24,12 +26,12 @@
 
 | Subproject | Purpose                                     | Depends on          |
 |------------|---------------------------------------------|---------------------|
-| `core`     | MIB parsing, model, repository, SNMP client | SNMP4J              |
+| `core`     | MIB parsing, model, repository, SNMP client | SNMP4J (internal)   |
 | `app`      | JavaFX user interface                       | `core`, JavaFX      |
 
 `core` has no JavaFX dependency so it can be tested headless and reused (for example by a future CLI).
-It exports `core.mib`, `core.mib.model` and `core.mib.repo`; `core.mib.parse` and `core.mib.resolve` are
-internal.
+It exports `core.mib`, `core.mib.model`, `core.mib.repo` and `core.snmp`; `core.mib.parse` and
+`core.mib.resolve` are internal. SNMP4J is required by `core` but no SNMP4J type is part of its API.
 
 ## Packages
 
@@ -42,12 +44,12 @@ Base package: `hr.avrbanac.snmptool`.
 | `core.mib.resolve`       | Turns ASTs from many modules into a resolved model                |
 | `core.mib.model`         | Immutable resolved model: modules, nodes, types, the OID tree, `Oid`, diagnostics |
 | `core.mib.repo`          | MIB store, import planning (`ImportPlan`), import/update/remove   |
-| `core.snmp`              | SNMP4J wrapper: sessions, profiles, operations, value decoding (M5) |
+| `core.snmp`              | SNMP4J wrapper: sessions, profiles, operations, value decoding and parsing |
 | `app`                    | Application entry point, main window, shared UI helpers           |
 | `app.tree`               | Lazy tree view, cells, search box and filtered tree               |
 | `app.details`            | Details pane and text formatting for display                      |
 | `app.mibs`               | `MibController`, import dialog, MIB modules / problems window     |
-| `app.ops`                | Operations panel, results table, device profile and set dialogs (M5) |
+| `app.ops`                | Operations panel, results table, device profile and set dialogs   |
 
 Dialogs live in the package of the feature they belong to (e.g. the import dialog in `app.mibs`).
 
@@ -60,8 +62,10 @@ Dialogs live in the package of the feature they belong to (e.g. the import dialo
 3. **Browsing:** the tree view reads `OidTree` nodes lazily; the details pane renders the selected `MibNode`.
 4. **Changes:** import and removal go through `MibController` → `MibRepository`; afterwards the model and
    its `MibSearch` index are rebuilt in the background and the tree keeps its selection.
-5. **Operations (M5):** the operations panel sends requests through `SnmpClient`; results come back as
-   `VarBindResult` objects that are decoded against the current `MibModel`.
+5. **Operations:** the operations panel sends requests through the `SnmpSession` of the selected device;
+   results come back as `VarBindResult`s and are named and formatted by `ResultFormatter` against the
+   current `MibModel`. Selecting a tree node fills the OID field; double-clicking a result selects its
+   definition in the tree.
 
 ## Threading
 
@@ -71,7 +75,8 @@ Dialogs live in the package of the feature they belong to (e.g. the import dialo
   ready.
 - `core` is thread-agnostic: it never touches UI threads; model objects are immutable, `MibRepository` is
   synchronized and `MibSearch` is thread-safe.
-- SNMP requests (M5) will run the same way; walks will be cancellable and stream results in batches.
+- SNMP requests run the same way, one at a time; walks stream batches to the table via
+  `Platform.runLater` and stop when Stop sets the cancel flag.
 
 ## Performance
 

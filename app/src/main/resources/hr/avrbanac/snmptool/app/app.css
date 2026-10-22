@@ -101,3 +101,21 @@
 .description {
     -fx-font-family: "monospace";
 }
+
+/* ---- Operations ---- */
+
+.error-text {
+    -fx-text-fill: #c62828;
+}
+
+.warning-text {
+    -fx-text-fill: #ef6c00;
+}
+
+.op-status {
+    -fx-text-fill: derive(-fx-text-base-color, 30%);
+}
+
+.op-status.error-text {
+    -fx-text-fill: #c62828;
+}
