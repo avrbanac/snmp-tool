@@ -3,20 +3,21 @@
 ## Overview
 
 ```
-┌────────────────────────── app (JavaFX) ──────────────────────────┐
-│  MainWindow                                                      │
-│  ├─ MibTreeView ──── DetailsPane                                 │
-│  └─ OperationsPanel ── ResultsTable                              │
-│  ImportDialog, DeviceProfileDialog, DiagnosticsView              │
-└───────────────┬───────────────────────────────┬──────────────────┘
-                │ public API                    │
-┌───────────────▼────────── core ───────────────▼──────────────────┐
-│  mib.parse      Lexer, Parser, AST, Diagnostics                  │
-│  mib.resolve    Resolver: imports, OIDs, types                   │
-│  mib.model      MibModule, MibNode, MibType, OidTree (immutable) │
-│  mib.repo       MibRepository, ModuleIndex, DependencyGraph      │
-│  snmp           SnmpClient, DeviceProfile, VarBindResult         │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────────── app (JavaFX) ─────────────────────────────┐
+│  MainWindow                                                           │
+│  ├─ MibTreeView (search, FilteredTree) ──── DetailsPane               │
+│  └─ OperationsPanel ── ResultsTable                         (M5)      │
+│  MibController ── ImportDialog, ModulesWindow (modules / problems)    │
+└────────────────┬──────────────────────────────────────┬───────────────┘
+                 │ public API                           │
+┌────────────────▼──────────────── core ────────────────▼───────────────┐
+│  mib          MibLoader, MibSource, BundledMibs, MibSearch            │
+│  mib.parse    Lexer, Parser, AST, Diagnostics             (internal)  │
+│  mib.resolve  Resolver, ModuleNames                       (internal)  │
+│  mib.model    MibModel, MibModule, MibNode, MibType, OidTree, Oid     │
+│  mib.repo     MibRepository, ImportPlan, ModuleEntry                  │
+│  snmp         SnmpClient, DeviceProfile, VarBindResult        (M5)    │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Gradle subprojects
@@ -41,13 +42,14 @@ Base package: `hr.avrbanac.snmptool`.
 | `core.mib.resolve`       | Turns ASTs from many modules into a resolved model                |
 | `core.mib.model`         | Immutable resolved model: modules, nodes, types, the OID tree, `Oid`, diagnostics |
 | `core.mib.repo`          | MIB store, import planning (`ImportPlan`), import/update/remove   |
-| `core.snmp`              | SNMP4J wrapper: sessions, profiles, operations, value decoding    |
+| `core.snmp`              | SNMP4J wrapper: sessions, profiles, operations, value decoding (M5) |
 | `app`                    | Application entry point, main window, shared UI helpers           |
 | `app.tree`               | Lazy tree view, cells, search box and filtered tree               |
 | `app.details`            | Details pane and text formatting for display                      |
 | `app.mibs`               | `MibController`, import dialog, MIB modules / problems window     |
-| `app.ops`                | Operations panel and results table                                |
-| `app.dialog`             | Import, device profile and set dialogs                            |
+| `app.ops`                | Operations panel, results table, device profile and set dialogs (M5) |
+
+Dialogs live in the package of the feature they belong to (e.g. the import dialog in `app.mibs`).
 
 ## Data flow
 
@@ -56,14 +58,20 @@ Base package: `hr.avrbanac.snmptool`.
 2. **Model:** the `MibModel` holds all resolved modules and one merged `OidTree`. It is immutable; any change
    (import, update, remove) builds a new model and the UI swaps to it.
 3. **Browsing:** the tree view reads `OidTree` nodes lazily; the details pane renders the selected `MibNode`.
-4. **Operations:** the operations panel sends requests through `SnmpClient`; results come back as
+4. **Changes:** import and removal go through `MibController` → `MibRepository`; afterwards the model and
+   its `MibSearch` index are rebuilt in the background and the tree keeps its selection.
+5. **Operations (M5):** the operations panel sends requests through `SnmpClient`; results come back as
    `VarBindResult` objects that are decoded against the current `MibModel`.
 
 ## Threading
 
-- All MIB loading and SNMP requests run in JavaFX `Task`s on a background executor.
-- `core` is thread-agnostic: it never touches UI threads and its model objects are immutable.
-- SNMP walks are cancellable; results are streamed to the UI in batches.
+- Loading, import planning, importing, removing and search indexing run off the JavaFX thread via
+  `Background.run` (a JavaFX `Task` on a daemon thread); results are applied on the JavaFX thread.
+- `MibController` disables MIB actions while one is running and keeps the old model until the new one is
+  ready.
+- `core` is thread-agnostic: it never touches UI threads; model objects are immutable, `MibRepository` is
+  synchronized and `MibSearch` is thread-safe.
+- SNMP requests (M5) will run the same way; walks will be cancellable and stream results in batches.
 
 ## Performance
 
@@ -90,6 +98,6 @@ not needed so far (the installer sets an adequate heap).
 |-------------------|----------------------------------|
 | Imported MIBs     | `~/.snmp-tool/mibs/`             |
 | Import origins    | `~/.snmp-tool/mibs/index.properties` |
-| Settings/profiles | `~/.snmp-tool/settings.json`     |
+| Settings/profiles | `~/.snmp-tool/settings.json` (planned, M6) |
 
 Bundled base MIBs are read from the classpath and are never copied into the user store.

@@ -11,6 +11,9 @@ initial development phase.
 
 ## [0.1.0] - in development
 
+Done: M1–M4 (project skeleton, MIB parser and resolver, MIB browser, MIB import). Next: M5 (SNMP
+operations).
+
 ### M1 — Project skeleton
 
 - Project documentation: README, changelog, CLAUDE.md and the `docs/` folder
@@ -99,5 +102,8 @@ initial development phase.
   - `MibSearch` is a per-model index built in the background with the model; name search dropped from up to
     380 ms to 2–16 ms, description search to ~11 ms;
   - result: reload ~5 s instead of ~11 s for the whole collection.
+- Documentation brought in line with the implementation: README features and status, architecture
+  (packages, data flow, threading, performance), MIB repository design, parser leniency rules, development
+  guide (testing, manual checks) and CLAUDE.md rules (test isolation from `~/.snmp-tool`, large sets).
 - Repository tests covering new, identical, newer, older and changed imports, bundled overrides, removal,
   missing dependencies, multi-module files, folder scans and problem reporting.

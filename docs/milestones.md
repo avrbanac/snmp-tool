@@ -45,11 +45,14 @@ anything else goes into a later milestone or the backlog.
 
 - Local repository directory (default `~/.snmp-tool/mibs`), one file per module, with an index of import
   origins.
-- Import single files or folders; detect module name(s) in each file.
-- Dependency graph from `IMPORTS`; report missing modules by name before loading.
-- Revision comparison (`LAST-UPDATED` / `REVISION`) on re-import; replace and reload dependants.
-- Remove a module (with warning about dependants).
-- Diagnostics view listing parser/resolver warnings per module.
+- Import single files or folders (recursively); detect module name(s) in each file; split files with
+  several modules.
+- Import review: new / newer / older / changed / already imported, bundled overrides, skipped files.
+- Dependencies from `IMPORTS`; missing modules reported by name in the import dialog and as diagnostics.
+- Revision comparison (`LAST-UPDATED` / `REVISION`) on re-import; replacing a module reloads the model.
+- Remove a module (with warning about dependants; bundled version restored if it was overridden).
+- *MIB Modules* window with a *Problems* tab listing parser/resolver diagnostics, filterable per module.
+- Works with large sets (LibreNMS collection, 4,700+ modules: reload ~5 s, search in milliseconds).
 
 **Done when:** vendor MIBs can be imported, updated and removed, and the tree reflects the change.
 

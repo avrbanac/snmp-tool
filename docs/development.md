@@ -20,6 +20,7 @@
 snmp-tool/
 ├── core/                    # MIB parser, model, repository, SNMP client (no JavaFX)
 │   └── src/{main,test}/{java,resources}
+│       └── main/resources/hr/avrbanac/snmptool/core/mib/ietf/   # bundled MIBs + index.list
 ├── app/                     # JavaFX UI
 │   └── src/{main,test}/{java,resources}
 ├── docs/                    # design documents
@@ -48,10 +49,26 @@ Compilation uses `-Xlint:all -Werror`, so warnings fail the build.
 ## Testing
 
 - JUnit 6 for all tests.
-- Parser tests use small inline MIB snippets or files under `core/src/test/resources/`.
-- Each fix driven by a real-world MIB adds a minimal regression snippet under
-  `core/src/test/resources/quirks/`.
-- SNMP tests run against an in-process SNMP4J agent; no external devices in automated tests.
+- Parser and resolver tests use small inline MIB snippets (Java text blocks); larger fixtures can go under
+  `core/src/test/resources/`.
+- Each fix driven by a real-world MIB adds a minimal regression snippet (see `ResolverTest`
+  `acceptsCommonVendorMistakes`).
+- `BundledMibsTest` requires all bundled MIBs to load with zero diagnostics.
+- Repository tests use `@TempDir`; nothing in tests may touch the real `~/.snmp-tool`.
+- UI logic that can be separated from JavaFX rendering (e.g. `FilteredTree`, `TextFormat`) has unit tests
+  in `app`.
+- SNMP tests (M5) run against an in-process SNMP4J agent; no external devices in automated tests.
+
+## Manual checks
+
+- To try the app without touching your own MIB store, start it with a different home directory through
+  the distribution's start script (not via `JAVA_TOOL_OPTIONS`, which would also move Gradle's home):
+  ```sh
+  ./gradlew :app:installDist
+  JAVA_OPTS=-Duser.home=/tmp/snmp-tool-home app/build/install/app/bin/app
+  ```
+- Large-set behaviour was measured with the LibreNMS MIB collection (`mibs/` of
+  github.com/librenms/librenms, ~4,900 files); see Performance in `docs/architecture.md`.
 
 ## Commits and versioning
 

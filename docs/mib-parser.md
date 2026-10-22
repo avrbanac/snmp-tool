@@ -129,4 +129,7 @@ is the UI's job.
 
 - Unit tests for lexer and parser with small inline snippets.
 - Every bundled IETF MIB must load with zero errors.
-- Vendor quirks get a regression test with a minimal snippet in `core/src/test/resources/quirks/`.
+- Vendor quirks get a regression test with a minimal inline snippet (`ResolverTest.acceptsCommonVendorMistakes`,
+  `ParserTest`).
+- The parser and resolver were also run against the LibreNMS collection (4,700+ vendor modules) to find
+  common mistakes and performance problems.
