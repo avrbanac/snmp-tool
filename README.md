@@ -42,8 +42,6 @@ Requires JDK 25. The Gradle wrapper downloads Gradle itself.
 ./gradlew :app:run     # start the application
 ```
 
-> The build is introduced in milestone 1; these commands do not work yet.
-
 ## Documentation
 
 | Document                                         | Contents                                          |

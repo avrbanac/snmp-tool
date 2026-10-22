@@ -1,0 +1,13 @@
+.pane {
+    -fx-padding: 6;
+    -fx-spacing: 6;
+}
+
+.placeholder {
+    -fx-text-fill: derive(-fx-text-base-color, 50%);
+}
+
+.status-bar {
+    -fx-padding: 3 8;
+    -fx-border-color: derive(-fx-base, -15%) transparent transparent transparent;
+}

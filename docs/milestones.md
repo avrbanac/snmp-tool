@@ -3,10 +3,10 @@
 Each milestone ends with a working, committed state. Scope listed here is the contract for the milestone;
 anything else goes into a later milestone or the backlog.
 
-## M1 — Project skeleton
+## M1 — Project skeleton ✅
 
 - Gradle multi-project build (Kotlin DSL) with wrapper: `core` and `app` subprojects.
-- Java 25 toolchain, JavaFX 25 via the OpenJFX Gradle plugin, JUnit 5.
+- Java 25 toolchain, JavaFX 25 via the OpenJFX Gradle plugin, JUnit 6.
 - `app` opens an empty main window with the final layout placeholders:
   tree (left), details (right), operations/results (bottom).
 - `.gitignore`, `.editorconfig`.

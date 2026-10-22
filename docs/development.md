@@ -23,13 +23,18 @@ snmp-tool/
 ├── app/                     # JavaFX UI
 │   └── src/{main,test}/{java,resources}
 ├── docs/                    # design documents
+├── buildSrc/                # shared build logic (snmptool.java-conventions plugin)
 ├── gradle/                  # wrapper and version catalog (libs.versions.toml)
 ├── CHANGELOG.md
 ├── CLAUDE.md
 └── README.md
 ```
 
-Dependency versions live in `gradle/libs.versions.toml`.
+Dependency versions live in `gradle/libs.versions.toml`. Settings shared by all subprojects
+(toolchain, compiler flags, JUnit) live in `buildSrc/src/main/kotlin/snmptool.java-conventions.gradle.kts`.
+
+Both subprojects are JPMS modules (`hr.avrbanac.snmptool.core`, `hr.avrbanac.snmptool.app`).
+Compilation uses `-Xlint:all -Werror`, so warnings fail the build.
 
 ## Coding conventions
 
@@ -42,7 +47,7 @@ Dependency versions live in `gradle/libs.versions.toml`.
 
 ## Testing
 
-- JUnit 5 for all tests.
+- JUnit 6 for all tests.
 - Parser tests use small inline MIB snippets or files under `core/src/test/resources/`.
 - Each fix driven by a real-world MIB adds a minimal regression snippet under
   `core/src/test/resources/quirks/`.
@@ -52,5 +57,7 @@ Dependency versions live in `gradle/libs.versions.toml`.
 
 - Branch `main` is always buildable.
 - Commit subjects use conventional prefixes: `feat:`, `fix:`, `docs:`, `build:`, `test:`, `refactor:`, `chore:`.
-- Every user-visible change adds a line to `CHANGELOG.md` under `[Unreleased]`.
-- Releases are tagged `vMAJOR.MINOR.PATCH`; the changelog section is renamed on release.
+- During initial development the version stays `0.1.0`; `CHANGELOG.md` records what was built under
+  `[0.1.0]`, with one section per milestone.
+- After the initial development phase, releases are tagged `vMAJOR.MINOR.PATCH` and changes go under
+  `[Unreleased]` until the next release.

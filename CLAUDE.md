@@ -22,8 +22,10 @@ Read the document relevant to the task before changing code:
 
 ## Stack
 
-- Java 25, JavaFX 25, Gradle (Kotlin DSL) via `./gradlew`, SNMP4J, JUnit 5.
-- Gradle subprojects: `core` (no JavaFX dependency) and `app` (JavaFX UI).
+- Java 25, JavaFX 25, Gradle (Kotlin DSL) via `./gradlew`, SNMP4J, JUnit 6.
+- Gradle subprojects: `core` (no JavaFX dependency) and `app` (JavaFX UI); both are JPMS modules.
+- Versions in `gradle/libs.versions.toml`; shared build logic in `buildSrc`.
+- Compiler runs with `-Xlint:all -Werror`: fix warnings, don't suppress them without reason.
 - Base package: `hr.avrbanac.snmptool`.
 
 ## Commands
@@ -42,6 +44,7 @@ Read the document relevant to the task before changing code:
 - Every parser or resolver fix that comes from a real MIB gets a regression test with a minimal
   MIB snippet under `core/src/test/resources/`.
 - Long-running work (MIB loading, SNMP requests) never runs on the JavaFX application thread.
-- Update `CHANGELOG.md` under `[Unreleased]` with every user-visible change.
+- Version stays `0.1.0` during initial development. Record changes in `CHANGELOG.md` under `[0.1.0]`,
+  in the section of the current milestone (`### M<n> — <title>`), as a general summary of what was built.
 - Keep docs in `docs/` in sync when a design changes.
 - Commit only when asked. Conventional-style subjects (`feat:`, `fix:`, `docs:`, `build:`, `test:`, `refactor:`).
