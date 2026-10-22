@@ -30,7 +30,7 @@
 
 ## Packages
 
-Base package: `io.github.avrbanac.snmptool`.
+Base package: `hr.avrbanac.snmptool`.
 
 | Package                  | Responsibility                                                    |
 |--------------------------|-------------------------------------------------------------------|

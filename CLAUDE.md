@@ -24,7 +24,7 @@ Read the document relevant to the task before changing code:
 
 - Java 25, JavaFX 25, Gradle (Kotlin DSL) via `./gradlew`, SNMP4J, JUnit 5.
 - Gradle subprojects: `core` (no JavaFX dependency) and `app` (JavaFX UI).
-- Base package: `io.github.avrbanac.snmptool`.
+- Base package: `hr.avrbanac.snmptool`.
 
 ## Commands
 
