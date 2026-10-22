@@ -18,9 +18,10 @@ import org.junit.jupiter.api.Test;
 class FilteredTreeTest {
 
     private static final MibModel MODEL = MibLoader.load(BundledMibs.ietf());
+    private static final MibSearch SEARCH = new MibSearch(MODEL);
 
     private static TreeItem<OidTree.Node> build(String query) {
-        return FilteredTree.build(MibSearch.search(MODEL, query, false, 1000).nodes());
+        return FilteredTree.build(SEARCH.search(query, false, 1000).nodes());
     }
 
     /** Depth-first search of the built items (does not load lazy children). */

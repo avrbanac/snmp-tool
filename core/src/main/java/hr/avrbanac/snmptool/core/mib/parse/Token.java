@@ -8,8 +8,9 @@ import hr.avrbanac.snmptool.core.mib.model.SourcePosition;
  * @param kind     token kind
  * @param text     token text; for strings the content without delimiters
  * @param position where the token starts
+ * @param offset   character offset of the token start in the source text
  */
-public record Token(TokenKind kind, String text, SourcePosition position) {
+public record Token(TokenKind kind, String text, SourcePosition position, int offset) {
 
     public boolean is(TokenKind k) {
         return kind == k;

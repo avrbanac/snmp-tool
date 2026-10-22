@@ -20,6 +20,7 @@ public final class Lexer {
     private int pos;
     private int line = 1;
     private int lineStart;
+    private int tokenStart;
 
     private Lexer(String text, String source, Diagnostics diagnostics) {
         this.text = text;
@@ -40,10 +41,11 @@ public final class Lexer {
         while (true) {
             skipWhitespaceAndComments();
             if (pos >= text.length()) {
-                tokens.add(new Token(TokenKind.EOF, "", position()));
+                tokens.add(new Token(TokenKind.EOF, "", position(), pos));
                 return;
             }
             SourcePosition start = position();
+            tokenStart = pos;
             char c = text.charAt(pos);
             if (Character.isLetter(c)) {
                 identifier(start);
@@ -122,7 +124,7 @@ public final class Lexer {
             diagnostics.warning(start, "Identifier '" + word + "' ends with a hyphen");
         }
         TokenKind kind = Character.isUpperCase(word.charAt(0)) ? TokenKind.UPPER_ID : TokenKind.LOWER_ID;
-        tokens.add(new Token(kind, word, start));
+        tokens.add(new Token(kind, word, start, tokenStart));
     }
 
     private void number(SourcePosition start) {
@@ -131,7 +133,7 @@ public final class Lexer {
         while (pos < text.length() && isDigit(text.charAt(pos))) {
             pos++;
         }
-        tokens.add(new Token(TokenKind.NUMBER, text.substring(begin, pos), start));
+        tokens.add(new Token(TokenKind.NUMBER, text.substring(begin, pos), start, tokenStart));
     }
 
     private void quotedString(SourcePosition start) {
@@ -146,7 +148,7 @@ public final class Lexer {
                     continue;
                 }
                 pos++;
-                tokens.add(new Token(TokenKind.QUOTED_STRING, sb.toString(), start));
+                tokens.add(new Token(TokenKind.QUOTED_STRING, sb.toString(), start, tokenStart));
                 return;
             }
             if (c == '\n') {
@@ -158,7 +160,7 @@ public final class Lexer {
             pos++;
         }
         diagnostics.error(start, "Unterminated quoted string");
-        tokens.add(new Token(TokenKind.QUOTED_STRING, sb.toString(), start));
+        tokens.add(new Token(TokenKind.QUOTED_STRING, sb.toString(), start, tokenStart));
     }
 
     private void binaryOrHexString(SourcePosition start) {
@@ -176,11 +178,11 @@ public final class Lexer {
             return;
         }
         pos = end + 2;
-        tokens.add(new Token(suffix == 'H' ? TokenKind.HEX_STRING : TokenKind.BINARY_STRING, content, start));
+        tokens.add(new Token(suffix == 'H' ? TokenKind.HEX_STRING : TokenKind.BINARY_STRING, content, start, tokenStart));
     }
 
     private void symbol(TokenKind kind, int length, SourcePosition start) {
-        tokens.add(new Token(kind, text.substring(pos, pos + length), start));
+        tokens.add(new Token(kind, text.substring(pos, pos + length), start, tokenStart));
         pos += length;
     }
 

@@ -47,3 +47,13 @@ Short records of significant decisions. New decisions are appended; superseded o
 - **Status:** Accepted
 - **Decision:** Build with Gradle (Kotlin DSL), wrapper committed, versions in a version catalog.
 - **Reason:** Straightforward JavaFX and jpackage plugin support; multi-project builds.
+
+## ADR-006 — MIB store without a metadata cache
+
+- **Date:** 2026-10-22
+- **Status:** Accepted
+- **Decision:** Store imported modules as one `<MODULE>.mib` file each and read module names, imports and
+  revisions from the files on every load. Keep only the import origin (path, time) in `index.properties`.
+- **Alternatives:** an `index.json` caching module metadata (the original plan in `mib-repository.md`).
+- **Reason:** parsing all modules takes tens of milliseconds, so a cache gains nothing and could go stale;
+  `java.util.Properties` needs no JSON library. One file per module makes replace and remove trivial.

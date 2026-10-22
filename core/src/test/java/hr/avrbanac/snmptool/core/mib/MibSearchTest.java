@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 class MibSearchTest {
 
     private static final MibModel MODEL = MibLoader.load(BundledMibs.ietf());
+    private static final MibSearch SEARCH = new MibSearch(MODEL);
 
     private static List<String> labels(MibSearch.Result result) {
         return result.nodes().stream().map(OidTree.Node::label).toList();
@@ -20,24 +21,24 @@ class MibSearchTest {
 
     @Test
     void blankQueryFindsNothing() {
-        assertEquals(List.of(), MibSearch.search(MODEL, "  ", true, 100).nodes());
+        assertEquals(List.of(), SEARCH.search("  ", true, 100).nodes());
     }
 
     @Test
     void findsByNameSubstringIgnoringCase() {
-        List<String> labels = labels(MibSearch.search(MODEL, "IFHCINOCT", false, 100));
+        List<String> labels = labels(SEARCH.search("IFHCINOCT", false, 100));
         assertEquals(List.of("ifHCInOctets"), labels);
     }
 
     @Test
     void findsByNumericOidAndInstanceOid() {
-        assertEquals(List.of("ifDescr"), labels(MibSearch.search(MODEL, "1.3.6.1.2.1.2.2.1.2", false, 100)));
-        assertEquals(List.of("ifDescr"), labels(MibSearch.search(MODEL, ".1.3.6.1.2.1.2.2.1.2.7", false, 100)));
+        assertEquals(List.of("ifDescr"), labels(SEARCH.search("1.3.6.1.2.1.2.2.1.2", false, 100)));
+        assertEquals(List.of("ifDescr"), labels(SEARCH.search(".1.3.6.1.2.1.2.2.1.2.7", false, 100)));
     }
 
     @Test
     void findsByQualifiedName() {
-        MibSearch.Result result = MibSearch.search(MODEL, "IF-MIB::ifIndex", false, 100);
+        MibSearch.Result result = SEARCH.search("IF-MIB::ifIndex", false, 100);
         assertEquals(Oid.parse("1.3.6.1.2.1.2.2.1.1"), result.nodes().getFirst().oid());
     }
 
@@ -45,18 +46,18 @@ class MibSearchTest {
     void searchesDescriptionsOnlyWhenAsked() {
         // In IF-MIB this phrase is split across two lines of the ifXEntry description.
         String phrase = "additional management information applicable";
-        assertEquals(List.of(), labels(MibSearch.search(MODEL, phrase, false, 100)));
-        assertEquals(List.of("ifXEntry"), labels(MibSearch.search(MODEL, phrase, true, 100)));
+        assertEquals(List.of(), labels(SEARCH.search(phrase, false, 100)));
+        assertEquals(List.of("ifXEntry"), labels(SEARCH.search(phrase, true, 100)));
     }
 
     @Test
     void returnsResultsInOidOrderAndRespectsLimit() {
-        MibSearch.Result result = MibSearch.search(MODEL, "if", false, 5);
+        MibSearch.Result result = SEARCH.search("if", false, 5);
         assertEquals(5, result.nodes().size());
         assertTrue(result.truncated());
         List<Oid> oids = result.nodes().stream().map(OidTree.Node::oid).toList();
         assertEquals(oids.stream().sorted().toList(), oids);
-        assertFalse(MibSearch.search(MODEL, "ifHCInOctets", false, 5).truncated());
+        assertFalse(SEARCH.search("ifHCInOctets", false, 5).truncated());
     }
 
     @Test

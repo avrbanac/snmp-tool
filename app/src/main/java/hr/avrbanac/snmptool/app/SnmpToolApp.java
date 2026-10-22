@@ -15,13 +15,18 @@ public final class SnmpToolApp extends Application {
     public void start(Stage stage) {
         MainWindow mainWindow = new MainWindow(stage);
         Scene scene = new Scene(mainWindow.root(), 1200, 800);
-        scene.getStylesheets().add(SnmpToolApp.class.getResource("app.css").toExternalForm());
+        scene.getStylesheets().add(stylesheet());
 
         stage.setTitle(TITLE);
         stage.setMinWidth(800);
         stage.setMinHeight(500);
         stage.setScene(scene);
         stage.show();
+    }
+
+    /** URL of the application stylesheet. */
+    static String stylesheet() {
+        return SnmpToolApp.class.getResource("app.css").toExternalForm();
     }
 
     public static void main(String[] args) {

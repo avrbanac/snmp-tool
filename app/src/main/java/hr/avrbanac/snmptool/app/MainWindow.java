@@ -1,15 +1,16 @@
 package hr.avrbanac.snmptool.app;
 
 import hr.avrbanac.snmptool.app.details.DetailsPane;
+import hr.avrbanac.snmptool.app.mibs.MibController;
+import hr.avrbanac.snmptool.app.mibs.ModulesWindow;
 import hr.avrbanac.snmptool.app.tree.MibTreeView;
-import hr.avrbanac.snmptool.core.mib.BundledMibs;
-import hr.avrbanac.snmptool.core.mib.MibLoader;
-import hr.avrbanac.snmptool.core.mib.model.Diagnostic;
 import hr.avrbanac.snmptool.core.mib.model.MibModel;
-import javafx.concurrent.Task;
+import hr.avrbanac.snmptool.core.mib.repo.MibRepository;
 import javafx.geometry.Orientation;
+import javafx.geometry.Pos;
 import javafx.scene.Parent;
 import javafx.scene.control.Alert;
+import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
@@ -31,12 +32,16 @@ import javafx.stage.Stage;
 final class MainWindow {
 
     private static final KeyCombination FIND = new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN);
+    private static final KeyCombination IMPORT = new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN);
 
     private final Stage stage;
     private final BorderPane root = new BorderPane();
-    private final Label status = new Label("Loading MIBs…");
+    private final Label status = new Label();
+    private final Hyperlink problems = new Hyperlink();
     private final MibTreeView treeView = new MibTreeView();
     private final DetailsPane detailsPane = new DetailsPane();
+    private final MibController mibs = new MibController(new MibRepository(MibRepository.defaultDirectory()));
+    private ModulesWindow modulesWindow;
 
     MainWindow(Stage stage) {
         this.stage = stage;
@@ -50,44 +55,45 @@ final class MainWindow {
             }
         });
         treeView.selectedNodeProperty().addListener((_, _, node) -> detailsPane.show(node));
-        loadModel();
+        mibs.modelProperty().addListener((_, _, model) -> showModel(model));
+        status.textProperty().bind(mibs.statusProperty());
+        problems.setOnAction(_ -> showModules(true));
+        problems.setVisible(false);
+        mibs.reload("");
     }
 
     Parent root() {
         return root;
     }
 
-    private void loadModel() {
-        Task<MibModel> task = new Task<>() {
-            @Override
-            protected MibModel call() {
-                return MibLoader.load(BundledMibs.ietf());
-            }
-        };
-        task.setOnSucceeded(_ -> {
-            MibModel model = task.getValue();
-            detailsPane.setModel(model);
-            treeView.setModel(model);
-            status.setText(summary(model));
-        });
-        task.setOnFailed(_ -> status.setText("Loading MIBs failed: " + task.getException().getMessage()));
-        Thread.ofPlatform().daemon().name("mib-loader").start(task);
+    private void showModel(MibModel model) {
+        detailsPane.setModel(model);
+        treeView.setModel(model, mibs.search());
+        problems.setText(MibController.problems(model.diagnostics()));
+        problems.setVisible(true);
     }
 
-    private static String summary(MibModel model) {
-        long errors = model.diagnostics().stream().filter(d -> d.severity() == Diagnostic.Severity.ERROR).count();
-        long warnings = model.diagnostics().size() - errors;
-        String problems = errors == 0 && warnings == 0 ? "no problems"
-                : errors + " errors, " + warnings + " warnings";
-        return String.format("%d modules · %,d nodes · %s", model.modules().size(), model.tree().size(), problems);
+    private void showModules(boolean showProblems) {
+        if (modulesWindow == null) {
+            modulesWindow = new ModulesWindow(mibs, stage, SnmpToolApp.stylesheet());
+        }
+        modulesWindow.show(showProblems);
     }
 
     private MenuBar createMenuBar() {
-        MenuItem importMibs = new MenuItem("Import MIBs…");
-        importMibs.setDisable(true);
+        MenuItem importFiles = new MenuItem("Import MIB files…");
+        importFiles.setAccelerator(IMPORT);
+        importFiles.setOnAction(_ -> mibs.importFiles(stage));
+        importFiles.disableProperty().bind(mibs.busyProperty());
+        MenuItem importFolder = new MenuItem("Import MIB folder…");
+        importFolder.setOnAction(_ -> mibs.importFolder(stage));
+        importFolder.disableProperty().bind(mibs.busyProperty());
+        MenuItem modules = new MenuItem("MIB modules…");
+        modules.setOnAction(_ -> showModules(false));
         MenuItem exit = new MenuItem("Exit");
         exit.setOnAction(_ -> stage.close());
-        Menu file = new Menu("File", null, importMibs, new SeparatorMenuItem(), exit);
+        Menu file = new Menu("File", null, importFiles, importFolder, new SeparatorMenuItem(), modules,
+                new SeparatorMenuItem(), exit);
 
         MenuItem find = new MenuItem("Find…");
         find.setAccelerator(FIND);
@@ -121,8 +127,10 @@ final class MainWindow {
     }
 
     private Parent createStatusBar() {
-        HBox bar = new HBox(status);
+        HBox bar = new HBox(4, status, new Label("·"), problems);
+        bar.setAlignment(Pos.CENTER_LEFT);
         bar.getStyleClass().add("status-bar");
+        bar.getChildren().get(1).visibleProperty().bind(problems.visibleProperty());
         return bar;
     }
 

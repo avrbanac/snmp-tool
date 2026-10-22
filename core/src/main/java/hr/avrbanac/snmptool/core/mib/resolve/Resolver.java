@@ -16,7 +16,6 @@ import hr.avrbanac.snmptool.core.mib.parse.Ast;
 import hr.avrbanac.snmptool.core.mib.parse.Diagnostics;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -58,6 +57,9 @@ public final class Resolver {
     private final Diagnostics diagnostics;
     private final Map<String, ParsedModule> modules = new LinkedHashMap<>();
     private final Map<String, Map<String, Ast.Definition>> definitions = new HashMap<>();
+    private final Set<String> smiV2Modules = new HashSet<>();
+    /** Every defined name (except macros) with the modules defining it, SMIv2 modules first. */
+    private final Map<String, List<String>> globalNames = new HashMap<>();
 
     private final Map<String, Optional<Oid>> oidCache = new HashMap<>();
     private final Set<String> oidInProgress = new HashSet<>();
@@ -97,7 +99,47 @@ public final class Resolver {
                 }
             }
             definitions.put(name, defs);
+            if (name.equals("SNMPv2-SMI")
+                    || p.module().definitions().stream().anyMatch(d -> d instanceof Ast.ModuleIdentity)
+                    || p.module().imports().stream().anyMatch(i -> i.module().equals("SNMPv2-SMI"))) {
+                smiV2Modules.add(name);
+            }
         }
+        modules.replaceAll((name, p) -> fixImportedModuleNames(p));
+        // Built once so the fallback lookup of names that were not imported is a map lookup.
+        for (boolean v2 : new boolean[] {true, false}) {
+            for (String module : modules.keySet()) {
+                if (smiV2Modules.contains(module) != v2) {
+                    continue;
+                }
+                definitions.get(module).forEach((symbol, d) -> {
+                    if (!(d instanceof Ast.Macro)) {
+                        globalNames.computeIfAbsent(symbol, _ -> new ArrayList<>()).add(module);
+                    }
+                });
+            }
+        }
+    }
+
+    /** Replaces misspelled module names in IMPORTS by the loaded module they mean (see {@link ModuleNames}). */
+    private ParsedModule fixImportedModuleNames(ParsedModule p) {
+        Ast.Module m = p.module();
+        boolean changed = false;
+        List<Ast.Import> imports = new ArrayList<>();
+        for (Ast.Import imp : m.imports()) {
+            Optional<String> actual = modules.containsKey(imp.module()) ? Optional.of(imp.module())
+                    : ModuleNames.resolve(imp.module(), modules.keySet());
+            if (actual.isPresent() && !actual.get().equals(imp.module())) {
+                diagnostics.warning(imp.position(), "Module " + m.name() + " imports from " + imp.module()
+                        + ", which is not loaded; using " + actual.get());
+                imports.add(new Ast.Import(actual.get(), imp.symbols(), imp.position()));
+                changed = true;
+            } else {
+                imports.add(imp);
+            }
+        }
+        return changed ? new ParsedModule(new Ast.Module(m.name(), m.position(), imports, m.definitions(),
+                m.startOffset(), m.endOffset()), p.source()) : p;
     }
 
     /**
@@ -216,9 +258,7 @@ public final class Resolver {
                 }
             }
         }
-        Optional<Symbol> fallback = modules.keySet().stream()
-                .sorted(Comparator.comparing((String m) -> !isSmiV2(m)))
-                .filter(m -> definitions.get(m).get(name) != null && !(definitions.get(m).get(name) instanceof Ast.Macro))
+        Optional<Symbol> fallback = globalNames.getOrDefault(name, List.of()).stream()
                 .findFirst()
                 .map(m -> new Symbol(m, definitions.get(m).get(name)));
         if (fallback.isPresent() && reported.add("implicit:" + module + ":" + name)) {
@@ -229,10 +269,7 @@ public final class Resolver {
     }
 
     private boolean isSmiV2(String module) {
-        Ast.Module ast = modules.get(module).module();
-        return module.equals("SNMPv2-SMI")
-                || ast.definitions().stream().anyMatch(d -> d instanceof Ast.ModuleIdentity)
-                || ast.imports().stream().anyMatch(i -> i.module().equals("SNMPv2-SMI"));
+        return smiV2Modules.contains(module);
     }
 
     // ---------------------------------------------------------------------------------------------------------
@@ -537,24 +574,42 @@ public final class Resolver {
         Optional<Symbol> symbol = ref.module().isPresent()
                 ? findExported(ref.module().get(), ref.name(), new HashSet<>())
                 : lookup(module, ref.name(), ref.position());
-        if (symbol.isPresent()) {
-            Ast.Definition d = symbol.get().definition();
-            if (d instanceof Ast.TypeAssignment || d instanceof Ast.TextualConvention) {
-                return namedType(symbol.get().module(), d.name(), d.position());
+        if (symbol.isPresent() && isType(symbol.get())) {
+            return namedType(symbol.get().module(), symbol.get().definition().name(), symbol.get().definition().position());
+        }
+        // Vendor MIBs write e.g. "SEQUENCE OF fooEntry" for the type FooEntry.
+        if (Character.isLowerCase(ref.name().charAt(0)) && ref.module().isEmpty()) {
+            String capitalized = Character.toUpperCase(ref.name().charAt(0)) + ref.name().substring(1);
+            Optional<Symbol> type = lookup(module, capitalized, ref.position()).filter(Resolver::isType);
+            if (type.isPresent()) {
+                if (reported.add("type-case:" + module + ":" + ref.name())) {
+                    diagnostics.warning(ref.position(), "Type " + ref.name() + " should be written " + capitalized);
+                }
+                return namedType(type.get().module(), capitalized, type.get().definition().position());
             }
+        }
+        if (symbol.isPresent()) {
             diagnostics.error(ref.position(), ref.name() + " is not a type");
             return unknown(ref.name());
         }
-        BaseType smi = SMI_TYPES.get(ref.name());
-        if (smi != null) {
+        Optional<Map.Entry<String, BaseType>> smi = SMI_TYPES.entrySet().stream()
+                .filter(e -> e.getKey().equalsIgnoreCase(ref.name()))
+                .findFirst();
+        if (smi.isPresent()) {
+            String canonical = smi.get().getKey();
             if (reported.add("smi-type:" + module + ":" + ref.name())) {
-                diagnostics.warning(ref.position(), "Type " + ref.name() + " is not imported into " + module
-                        + "; using the SMI definition");
+                diagnostics.warning(ref.position(), canonical.equals(ref.name())
+                        ? "Type " + ref.name() + " is not imported into " + module + "; using the SMI definition"
+                        : "Type " + ref.name() + " should be written " + canonical + "; using the SMI definition");
             }
-            return named(MibType.of(smi), ref.name(), "", Optional.empty());
+            return named(MibType.of(smi.get().getValue()), canonical, "", Optional.empty());
         }
         diagnostics.error(ref.position(), "Unknown type " + ref.name() + " in module " + module);
         return unknown(ref.name());
+    }
+
+    private static boolean isType(Symbol symbol) {
+        return symbol.definition() instanceof Ast.TypeAssignment || symbol.definition() instanceof Ast.TextualConvention;
     }
 
     /** Resolves the type defined as {@code name} in {@code module}, caching the result. */

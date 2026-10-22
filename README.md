@@ -8,14 +8,18 @@ the tool offers **get, getNext, walk and set** against a single device over SNMP
 
 > Status: early development. See [docs/milestones.md](docs/milestones.md) for the roadmap.
 
-## Features (planned)
+## Features
 
 - **MIB tree:** every loaded module merged into one OID tree, with search by name or OID.
 - **Details pane:** name, numeric OID, syntax (resolved through textual conventions), access, status,
   units, index, enumerated values and description for the selected node.
-- **MIB import:** import single files or whole folders into a local MIB repository.
-- **Dependency handling:** `IMPORTS` are resolved across modules; missing modules are reported by name.
-- **Module updates:** re-importing a module compares revisions, offers replacement and reloads dependants.
+- **MIB import:** import single files or whole folders (recursively) into a local MIB store; review
+  every module (new, newer, older, changed, already imported) before anything is written.
+- **Dependency handling:** `IMPORTS` are resolved across modules; missing modules are reported by name,
+  both before importing and afterwards.
+- **Module updates and removal:** revisions are compared on re-import; imported modules can replace
+  bundled ones and can be removed again.
+- **Problems view:** every parser and resolver diagnostic with file and line.
 - **Bundled base MIBs:** standard IETF modules (`SNMPv2-SMI`, `SNMPv2-TC`, `IF-MIB`, ...) are included.
 - **SNMP operations:** get, getNext, walk and set on a selected node, using v2c (community) or v3
   (USM authentication and privacy). Results are decoded using MIB names, types and enumerations.

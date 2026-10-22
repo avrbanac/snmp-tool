@@ -56,6 +56,7 @@ public final class MibTreeView {
     private final Set<Oid> matches = new HashSet<>();
     private final PauseTransition debounce = new PauseTransition(Duration.millis(250));
     private MibModel model;
+    private MibSearch searchIndex;
     private boolean filtered;
 
     public MibTreeView() {
@@ -118,9 +119,10 @@ public final class MibTreeView {
         return selected.getReadOnlyProperty();
     }
 
-    /** Shows a new model, keeping the selection and search if possible. */
-    public void setModel(MibModel model) {
+    /** Shows a new model with its search index, keeping the selection and search if possible. */
+    public void setModel(MibModel model, MibSearch searchIndex) {
         this.model = model;
+        this.searchIndex = searchIndex;
         tree.setDisable(false);
         applySearch();
     }
@@ -194,7 +196,7 @@ public final class MibTreeView {
             return;
         }
         filtered = true;
-        MibSearch.Result result = MibSearch.search(model, query, inDescriptions.isSelected(), SEARCH_LIMIT);
+        MibSearch.Result result = searchIndex.search(query, inDescriptions.isSelected(), SEARCH_LIMIT);
         result.nodes().forEach(n -> matches.add(n.oid()));
         tree.setRoot(FilteredTree.build(result.nodes()));
         int count = result.nodes().size();

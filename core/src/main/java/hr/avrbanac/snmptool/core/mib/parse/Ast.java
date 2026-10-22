@@ -14,8 +14,17 @@ public final class Ast {
     private Ast() {
     }
 
-    /** One {@code DEFINITIONS ::= BEGIN ... END} module. */
-    public record Module(String name, SourcePosition position, List<Import> imports, List<Definition> definitions) {
+    /**
+     * One {@code DEFINITIONS ::= BEGIN ... END} module. The offsets delimit the module in the source text,
+     * from the module name to just after {@code END}.
+     */
+    public record Module(
+            String name,
+            SourcePosition position,
+            List<Import> imports,
+            List<Definition> definitions,
+            int startOffset,
+            int endOffset) {
         public Module {
             imports = List.copyOf(imports);
             definitions = List.copyOf(definitions);

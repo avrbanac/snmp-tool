@@ -1,6 +1,7 @@
 package hr.avrbanac.snmptool.core.mib.model;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,9 +32,9 @@ public final class MibModel {
             }
         }
         this.modulesByName = Map.copyOf(byName);
-        Map<String, List<MibNode>> frozen = new HashMap<>();
-        nodes.forEach((name, list) -> frozen.put(name, List.copyOf(list)));
-        this.nodesByName = Map.copyOf(frozen);
+        // Wrapped rather than copied: large MIB sets have hundreds of thousands of names.
+        nodes.replaceAll((name, list) -> List.copyOf(list));
+        this.nodesByName = Collections.unmodifiableMap(nodes);
     }
 
     /** All modules, in load order. */

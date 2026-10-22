@@ -157,12 +157,15 @@ public final class Parser {
                 recover(definitionStart);
             }
         }
+        int endOffset;
         if (current().isWord("END")) {
-            advance();
+            Token end = advance();
+            endOffset = end.offset() + end.text().length();
         } else {
             diagnostics.warning(current().position(), "Missing END of module " + name.text());
+            endOffset = current().offset();
         }
-        return new Ast.Module(name.text(), name.position(), imports, definitions);
+        return new Ast.Module(name.text(), name.position(), imports, definitions, name.offset(), endOffset);
     }
 
     private void skipExports() {
@@ -615,10 +618,7 @@ public final class Parser {
             advance();
             return new Ast.Choice(parseElements(), p);
         } else if (t.isIdentifier()) {
-            advance();
-            if (t.is(TokenKind.LOWER_ID)) {
-                diagnostics.warning(p, "Type name '" + t.text() + "' should start with an upper-case letter");
-            }
+            advance(); // a lower-case type reference is reported by the resolver, which knows what it meant
             if (current().is(TokenKind.DOT) && peek(1).isIdentifier()) {
                 advance();
                 Token name = advance();

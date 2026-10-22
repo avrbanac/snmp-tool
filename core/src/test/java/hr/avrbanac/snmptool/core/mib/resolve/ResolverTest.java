@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test;
 class ResolverTest {
 
     private static final Set<String> BASE = Set.of("SNMPv2-SMI.mib", "SNMPv2-TC.mib", "SNMPv2-CONF.mib",
-            "RFC1155-SMI.mib", "RFC-1215.mib");
+            "RFC1155-SMI.mib", "RFC-1212.mib", "RFC-1215.mib", "RFC1213-MIB.mib");
 
     private static MibModel load(String... texts) {
         List<MibSource> sources = new ArrayList<>(BundledMibs.ietf().stream()
@@ -233,6 +233,75 @@ class ResolverTest {
                 """);
         assertTrue(messages(model).contains("Circular object identifier definition of a"));
         assertTrue(messages(model).contains("Circular type definition of Loop"));
+    }
+
+    @Test
+    void acceptsCommonVendorMistakes() {
+        MibModel model = load("""
+                SLOPPY-MIB DEFINITIONS ::= BEGIN
+                IMPORTS enterprises FROM RFC1155-SMI
+                        OBJECT-TYPE FROM RFC1212
+                        DisplayString FROM RFC-1213;
+                sloppy OBJECT IDENTIFIER ::= { enterprises 777 }
+                sloppyTable OBJECT-TYPE
+                    SYNTAX SEQUENCE OF sloppyEntry
+                    ACCESS not-accessible
+                    STATUS mandatory
+                    ::= { sloppy 1 }
+                sloppyEntry OBJECT-TYPE
+                    SYNTAX SloppyEntry
+                    ACCESS not-accessible
+                    STATUS mandatory
+                    INDEX { sloppyIndex }
+                    ::= { sloppyTable 1 }
+                SloppyEntry ::= SEQUENCE { sloppyIndex INTEGER32, sloppyCount GAUGE, sloppyName DisplayString }
+                sloppyIndex OBJECT-TYPE
+                    SYNTAX INTEGER32
+                    ACCESS read-only
+                    STATUS mandatory
+                    ::= { sloppyEntry 1 }
+                sloppyCount OBJECT-TYPE
+                    SYNTAX GAUGE
+                    ACCESS read-only
+                    STATUS mandatory
+                    ::= { sloppyEntry 2 }
+                sloppyName OBJECT-TYPE
+                    SYNTAX DisplayString
+                    ACCESS read-only
+                    STATUS mandatory
+                    ::= { sloppyEntry 3 }
+                END
+                """);
+        assertEquals(List.of(
+                "Module SLOPPY-MIB imports from RFC1212, which is not loaded; using RFC-1212",
+                "Module SLOPPY-MIB imports from RFC-1213, which is not loaded; using RFC1213-MIB",
+                "Type sloppyEntry should be written SloppyEntry",
+                "Type INTEGER32 should be written Integer32; using the SMI definition",
+                "Type GAUGE should be written Gauge; using the SMI definition"), messages(model));
+        MibNode table = model.lookup("sloppyTable").orElseThrow();
+        assertEquals(NodeKind.TABLE, table.kind());
+        assertEquals("SEQUENCE OF SloppyEntry", table.syntax().orElseThrow().syntaxText());
+        assertEquals(BaseType.INTEGER32, model.lookup("sloppyIndex").orElseThrow().syntax().orElseThrow().baseType());
+        assertEquals(BaseType.GAUGE32, model.lookup("sloppyCount").orElseThrow().syntax().orElseThrow().baseType());
+        assertEquals("DisplayString", model.lookup("sloppyName").orElseThrow().syntax().orElseThrow().name());
+        assertEquals(NodeKind.COLUMN, model.lookup("sloppyName").orElseThrow().kind());
+    }
+
+    @Test
+    void keepsReportingNonTypesUsedAsTypes() {
+        MibModel model = load("""
+                NOT-TYPE-MIB DEFINITIONS ::= BEGIN
+                IMPORTS enterprises, OBJECT-TYPE FROM SNMPv2-SMI;
+                thing OBJECT IDENTIFIER ::= { enterprises 778 }
+                value OBJECT-TYPE
+                    SYNTAX thing
+                    MAX-ACCESS read-only
+                    STATUS current
+                    DESCRIPTION "x"
+                    ::= { thing 1 }
+                END
+                """);
+        assertEquals(List.of("thing is not a type"), messages(model));
     }
 
     @Test

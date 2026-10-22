@@ -41,9 +41,10 @@ anything else goes into a later milestone or the backlog.
 
 **Done when:** the bundled MIBs can be browsed and every node shows its full definition.
 
-## M4 — MIB import and repository
+## M4 — MIB import and repository ✅
 
-- Local repository directory (default `~/.snmp-tool/mibs`) with an index file.
+- Local repository directory (default `~/.snmp-tool/mibs`), one file per module, with an index of import
+  origins.
 - Import single files or folders; detect module name(s) in each file.
 - Dependency graph from `IMPORTS`; report missing modules by name before loading.
 - Revision comparison (`LAST-UPDATED` / `REVISION`) on re-import; replace and reload dependants.

@@ -36,7 +36,8 @@ public final class OidTree {
             node.definitions.add(definition);
         }
         byOid.values().forEach(Node::freeze);
-        return new OidTree(List.copyOf(roots.values()), Map.copyOf(byOid));
+        // Wrapped rather than copied: Map.copyOf is slow for the hundreds of thousands of nodes of large sets.
+        return new OidTree(List.copyOf(roots.values()), Collections.unmodifiableMap(byOid));
     }
 
     private static Node getOrCreate(Oid oid, Map<Oid, Node> byOid, TreeMap<Long, Node> roots) {
@@ -96,7 +97,8 @@ public final class OidTree {
     public static final class Node {
         private final Oid oid;
         private final Node parent;
-        private final TreeMap<Long, Node> childMap = new TreeMap<>();
+        /** Children by arc while building; released by {@link #freeze()}. */
+        private TreeMap<Long, Node> childMap = new TreeMap<>();
         private List<MibNode> definitions = new ArrayList<>();
         private List<Node> children = List.of();
 
@@ -107,7 +109,8 @@ public final class OidTree {
 
         private void freeze() {
             definitions = List.copyOf(definitions);
-            children = Collections.unmodifiableList(new ArrayList<>(childMap.values()));
+            children = childMap.isEmpty() ? List.of() : List.copyOf(childMap.values());
+            childMap = null;
         }
 
         public Oid oid() {

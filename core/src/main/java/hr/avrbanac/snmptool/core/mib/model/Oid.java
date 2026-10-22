@@ -15,9 +15,12 @@ public final class Oid implements Comparable<Oid> {
     public static final long MAX_ARC = 0xFFFF_FFFFL;
 
     private final long[] arcs;
+    /** Cached; OIDs are used as map keys for every node of large trees. */
+    private final int hash;
 
     private Oid(long[] arcs) {
         this.arcs = arcs;
+        this.hash = Arrays.hashCode(arcs);
     }
 
     /**
@@ -119,12 +122,12 @@ public final class Oid implements Comparable<Oid> {
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof Oid other && Arrays.equals(arcs, other.arcs);
+        return o instanceof Oid other && hash == other.hash && Arrays.equals(arcs, other.arcs);
     }
 
     @Override
     public int hashCode() {
-        return Arrays.hashCode(arcs);
+        return hash;
     }
 
     /** Dotted notation without a leading dot, e.g. {@code 1.3.6.1}. */

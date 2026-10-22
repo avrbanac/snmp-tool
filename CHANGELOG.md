@@ -69,3 +69,35 @@ initial development phase.
 - Core: `MibSearch` (name, `MODULE::name`, OID and description search), `OidTree.stream()` and
   `Node.symbolicPath()`.
 - Tests for search, the filtered tree and description/date formatting.
+
+### M4 — MIB import and repository
+
+- Local MIB store in `~/.snmp-tool/mibs/`: one `<MODULE>.mib` file per module (files with several modules
+  are split) and `index.properties` recording where and when each module was imported. Writes are atomic.
+- Import of MIB files (Ctrl+O) or whole folders, searched recursively. Before anything is written, an
+  import dialog lists every module found with its status (new, newer revision, older revision, changed,
+  already imported), revision dates, parse problems and source file, and whether it replaces a bundled
+  module; skipped files (no module, unreadable, duplicates) are listed separately.
+- Missing dependencies are listed live for the current selection; modules can still be imported without
+  them.
+- Imported modules can replace bundled ones; removing them restores the bundled version. Removal asks for
+  confirmation and lists the modules that import from the removed one.
+- *MIB Modules* window (File → MIB modules…): all modules with origin, revision, problem count and import
+  details, imported ones first, with filter, import, remove and "show problems"; a *Problems* tab lists
+  every diagnostic with file and line, filterable. The status bar links to it with the problem count.
+- Loading, import and removal run in the background; the tree keeps its selection across reloads.
+- Parser records module start/end offsets (used to split multi-module files).
+- More leniency for vendor MIBs, each reported as a warning: SMI type names in the wrong case (`INTEGER32`,
+  `GAUGE`), lower-case type references (`SEQUENCE OF fooEntry`), and misspelled module names in IMPORTS
+  (`RFC1212`, `RFC-1213`, ...), which also no longer count as missing dependencies in the import dialog.
+- Performance for large MIB sets, measured with the LibreNMS collection (4,723 modules, 893k OID nodes):
+  - resolver: fallback lookup of names that were not imported uses a name index built once (a 4,700-module
+    load took over 10 minutes before);
+  - `Oid` caches its hash code; the OID tree and model no longer copy their large maps;
+  - repository caches module headers per stored file (size and modification time); listing modules dropped
+    from ~1.8 s to ~0.2 s;
+  - `MibSearch` is a per-model index built in the background with the model; name search dropped from up to
+    380 ms to 2–16 ms, description search to ~11 ms;
+  - result: reload ~5 s instead of ~11 s for the whole collection.
+- Repository tests covering new, identical, newer, older and changed imports, bundled overrides, removal,
+  missing dependencies, multi-module files, folder scans and problem reporting.

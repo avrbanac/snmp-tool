@@ -71,7 +71,11 @@ Runs over all loaded module ASTs at once.
    - a name that is used but not imported is taken from any loaded module that defines it, preferring SMIv2
      modules;
    - SMI base types (`Counter32`, `Integer32`, ...) that are used but not imported fall back to their SMI
-     definitions.
+     definitions, also when written in the wrong case (`INTEGER32`, `GAUGE`, `COUNTER32`);
+   - a lower-case type reference (`SEQUENCE OF fooEntry`) resolves to the capitalized type (`FooEntry`);
+   - an import from a module that is not loaded is redirected to the loaded module it obviously means:
+     known aliases (`RFC-1213` → `RFC1213-MIB`, `RFC1155` → `RFC1155-SMI`, ...) or the only module whose name
+     matches ignoring case, `-` and `_` (`RFC1212` → `RFC-1212`). See `ModuleNames`.
 3. **OIDs:** each OID value `{ parent n }` or `{ iso org(3) dod(6) ... }` is resolved recursively with
    cycle detection. Built-in roots: `ccitt(0)`, `iso(1)`, `joint-iso-ccitt(2)`. A leading number is an
    absolute arc (`zeroDotZero ::= { 0 0 }`). SMIv1 `TRAP-TYPE` definitions are placed at

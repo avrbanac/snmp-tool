@@ -1,62 +1,86 @@
 # MIB repository design
 
-The repository manages which MIB modules are available, where their files live, how they depend on each
-other and how they are updated.
+The repository (`core.mib.repo.MibRepository`) manages which MIB modules are available, where their files
+live, how they depend on each other and how they are updated.
 
 ## Sources
 
-1. **Bundled:** standard IETF modules shipped on the classpath. Read-only; cannot be removed.
-2. **User store:** files imported by the user, copied to `~/.snmp-tool/mibs/`.
+1. **Bundled:** the IETF/IANA modules shipped on the classpath (see `docs/mib-parser.md`). Read-only;
+   cannot be removed.
+2. **Imported:** modules the user imported, stored in `~/.snmp-tool/mibs/`.
 
-A user-store module with the same name as a bundled one overrides it (useful for newer revisions).
+An imported module with the same name as a bundled one replaces it (useful for newer revisions). Removing
+the imported module brings the bundled one back.
 
-## Index
+## Store layout
 
-`~/.snmp-tool/mibs/index.json`, one entry per module:
+```
+~/.snmp-tool/mibs/
+├── ACME-SMI.mib          one file per module, named <MODULE>.mib
+├── ACME-PORT-MIB.mib
+└── index.properties      where and when each module was imported
+```
 
-| Field          | Meaning                                                      |
-|----------------|--------------------------------------------------------------|
-| `module`       | Module name from `DEFINITIONS`                               |
-| `file`         | File name inside the store                                   |
-| `sha256`       | Hash of the stored file                                      |
-| `lastUpdated`  | `LAST-UPDATED` of `MODULE-IDENTITY` (SMIv2), if present      |
-| `revisions`    | `REVISION` dates, newest first                               |
-| `imports`      | Names of modules this module imports from                    |
-| `importedAt`   | When the file was imported                                   |
-| `originalPath` | Where the file was imported from                             |
-
-The index is a cache: if it is missing or stale (hash mismatch), it is rebuilt by scanning the store.
+- Module names, imports and revisions are **read from the files** each time (parsing all modules takes a
+  few tens of milliseconds), so there is no cache that can go stale.
+- `index.properties` holds only what cannot be derived from the files: `<MODULE>.from` (original path) and
+  `<MODULE>.at` (import time, ISO-8601).
+- Files are written to a temporary file and atomically moved into place; the index likewise.
+- A source file containing several modules is split; each module is stored in its own file.
+- Characters that are unsafe in file names are replaced with `_`.
 
 ## Import flow
 
-1. User selects files or a folder.
-2. Each file is lexed and parsed far enough to read module names, `IMPORTS` and revision info.
-3. For each module found:
-   - **New module:** stage for adding.
-   - **Same name, identical hash:** skip ("already imported").
-   - **Same name, different content:** compare `LAST-UPDATED`; show old vs new revision and ask whether to
-     replace. Older-than-installed is allowed but flagged.
-4. Build the dependency closure of staged modules against bundled + store + staged modules.
-   List **missing modules** by name, with which module needs them.
-5. User confirms; files are copied into the store, the index is updated, and a new `MibModel` is built.
+1. The user selects files, or a folder that is searched recursively (hidden files are skipped).
+2. `planImport` parses every file and builds an `ImportPlan` without writing anything:
+   - files without a module, unreadable files and files over 16 MB become **problems** ("Skipped");
+   - a module found in several selected files is taken from the one with the newest revision; the other
+     copies are listed as problems;
+   - each module becomes a **candidate** with a change status compared to the installed module of the
+     same name (imported, or else bundled):
 
-Modules with missing dependencies can still be imported; their unresolved parts are marked in the tree and
-listed in the diagnostics view.
+     | Status      | Meaning                                                        | Selected by default |
+     |-------------|----------------------------------------------------------------|---------------------|
+     | `NEW`       | no module with this name yet                                   | yes                 |
+     | `NEWER`     | newer revision than installed                                  | yes                 |
+     | `OLDER`     | older revision than installed                                  | no                  |
+     | `CHANGED`   | different text, but same or no revision date                   | yes                 |
+     | `IDENTICAL` | same text as installed; nothing to do                          | not selectable      |
 
-## Dependency graph
+     plus whether it would replace a bundled module, its revision, the installed revision, its
+     dependencies and its parse error/warning counts.
+   - The revision is the latest of `LAST-UPDATED` and the `REVISION` dates, normalized to
+     `YYYYMMDDHHMM` (two-digit years mean 19YY).
+3. The import dialog shows the plan. As the selection changes, it lists **missing dependencies**: modules
+   that selected candidates import from but that are neither installed nor selected.
+4. `applyImport` writes the selected candidates and updates the index; the model is then reloaded.
 
-- Directed graph: module → modules it imports from.
-- Used for: missing-dependency reports, load order, finding dependants on update/remove.
-- Cycles are allowed (they exist in the wild); the resolver handles them because it resolves all modules
-  together rather than strictly in order.
+Modules with missing dependencies can still be imported; their unresolved parts are reported as
+diagnostics and left out of the tree.
 
-## Update and remove
+## Dependencies
 
-- **Update:** replacing a module triggers a full model rebuild. Dependants are re-resolved automatically;
-  newly appearing diagnostics (e.g. a symbol removed in the new revision) are shown to the user.
-- **Remove:** warns if other modules depend on the module, listing them. Bundled modules cannot be removed.
+- Each module's dependencies are the modules named in its `IMPORTS`.
+- Used for missing-dependency reports and for listing dependants before removal.
+- Cycles are allowed; the resolver handles them because it resolves all modules together.
 
-## Concurrency and safety
+## Remove
 
-- All store changes go through `MibRepository`; writes are done to a temp file and atomically moved.
-- The model rebuild runs in the background; the UI keeps the old model until the new one is ready.
+- Only imported modules can be removed. The confirmation lists the modules that import from it, and says
+  when the bundled version will be used again.
+- Removing deletes the file and its index entries; the model is reloaded.
+
+## UI
+
+- **File → Import MIB files…** (Ctrl+O) and **Import MIB folder…** open the import dialog.
+- **File → MIB modules…** opens the *MIB Modules* window:
+  - *Modules* tab: imported modules first, then bundled; origin, revision, problem count, import time and
+    original path; import, remove and "show problems" actions; filter by name.
+  - *Problems* tab: all diagnostics (severity, file, line, message), filterable by file or message.
+- The status bar shows the problem count as a link to the *Problems* tab.
+
+## Concurrency
+
+- `MibRepository` methods are synchronized; the store is meant for one application instance at a time.
+- In the app, planning, importing, removing and loading run in the background (`MibController`); actions
+  are disabled while one is running, and the UI keeps the old model until the new one is ready.

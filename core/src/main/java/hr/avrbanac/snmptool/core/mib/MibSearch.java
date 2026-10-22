@@ -1,13 +1,14 @@
 package hr.avrbanac.snmptool.core.mib;
 
 import hr.avrbanac.snmptool.core.mib.model.MibModel;
-import hr.avrbanac.snmptool.core.mib.model.MibNode;
 import hr.avrbanac.snmptool.core.mib.model.Oid;
 import hr.avrbanac.snmptool.core.mib.model.OidTree;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * Finds tree nodes matching a search query.
@@ -20,13 +21,20 @@ import java.util.regex.Pattern;
  *   <li>anything else: case-insensitive substring of the name, and optionally of the description (where
  *       line breaks and indentation count as single spaces).</li>
  * </ul>
+ *
+ * <p>An instance indexes one model, so that each search is a scan over prepared strings. Thread-safe.
  */
 public final class MibSearch {
 
     private static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
-    private MibSearch() {
-    }
+    private final MibModel model;
+    /** Defined nodes in OID order; the arrays below are parallel to it. */
+    private final List<OidTree.Node> nodes;
+    /** Lower-case names of each node's definitions, joined with newlines. */
+    private final String[] names;
+    /** Normalized descriptions, built on the first description search. */
+    private String[] descriptions;
 
     /**
      * Search result.
@@ -40,6 +48,16 @@ public final class MibSearch {
         }
     }
 
+    /** Builds the name index for a model; reuse the instance for all searches on that model. */
+    public MibSearch(MibModel model) {
+        this.model = model;
+        this.nodes = model.tree().stream().filter(n -> !n.definitions().isEmpty()).toList();
+        this.names = nodes.stream()
+                .map(n -> n.definitions().stream().map(d -> d.name().toLowerCase(Locale.ROOT))
+                        .collect(Collectors.joining("\n")))
+                .toArray(String[]::new);
+    }
+
     /**
      * Searches the model.
      *
@@ -47,26 +65,48 @@ public final class MibSearch {
      * @param descriptions whether to also match description text
      * @param limit        maximum number of nodes returned
      */
-    public static Result search(MibModel model, String query, boolean descriptions, int limit) {
+    public Result search(String query, boolean descriptions, int limit) {
         String q = query.strip();
         if (q.isEmpty()) {
             return new Result(List.of(), false);
         }
-        Optional<OidTree.Node> exact = exactMatch(model, q);
+        Optional<OidTree.Node> exact = exactMatch(q);
         if (exact.isPresent()) {
             return new Result(List.of(exact.get()), false);
         }
         String needle = normalize(q);
-        List<OidTree.Node> matches = model.tree().stream()
-                .filter(node -> node.definitions().stream().anyMatch(d -> matches(d, needle, descriptions)))
-                .limit(limit + 1L)
-                .toList();
+        String[] texts = descriptions ? descriptions() : null;
+        List<OidTree.Node> matches = new ArrayList<>();
+        for (int i = 0; i < nodes.size() && matches.size() <= limit; i++) {
+            if (names[i].contains(needle) || (texts != null && texts[i].contains(needle))) {
+                matches.add(nodes.get(i));
+            }
+        }
         return matches.size() > limit
                 ? new Result(matches.subList(0, limit), true)
                 : new Result(matches, false);
     }
 
-    private static Optional<OidTree.Node> exactMatch(MibModel model, String q) {
+    /**
+     * Builds the description index now instead of on the first description search; meant to be called from a
+     * background thread.
+     */
+    public void indexDescriptions() {
+        descriptions();
+    }
+
+    private synchronized String[] descriptions() {
+        if (descriptions == null) {
+            descriptions = nodes.stream()
+                    .map(n -> n.definitions().stream()
+                            .map(d -> d.description().map(MibSearch::normalize).orElse(""))
+                            .collect(Collectors.joining("\n")))
+                    .toArray(String[]::new);
+        }
+        return descriptions;
+    }
+
+    private Optional<OidTree.Node> exactMatch(String q) {
         if (q.contains("::")) {
             return model.lookup(q).flatMap(n -> model.tree().find(n.oid()));
         }
@@ -79,11 +119,6 @@ public final class MibSearch {
             }
         }
         return Optional.empty();
-    }
-
-    private static boolean matches(MibNode node, String needle, boolean descriptions) {
-        return node.name().toLowerCase(Locale.ROOT).contains(needle)
-                || (descriptions && node.description().map(d -> normalize(d).contains(needle)).orElse(false));
     }
 
     /** Lower case with runs of whitespace collapsed, so phrases match across line breaks. */
