@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.stream.Stream;
 
 /**
  * All MIB nodes arranged by object identifier. Arcs that no loaded module names still get a tree node, so the
@@ -81,6 +82,11 @@ public final class OidTree {
         return Optional.empty();
     }
 
+    /** All nodes in OID order (depth-first, parents before children). */
+    public Stream<Node> stream() {
+        return roots.stream().flatMap(Node::subtree);
+    }
+
     /** Number of nodes, including unnamed intermediate nodes. */
     public int size() {
         return byOid.size();
@@ -125,6 +131,16 @@ public final class OidTree {
         /** The primary definition. */
         public Optional<MibNode> definition() {
             return definitions.stream().findFirst();
+        }
+
+        /** This node and all its descendants in OID order. */
+        public Stream<Node> subtree() {
+            return Stream.concat(Stream.of(this), children.stream().flatMap(Node::subtree));
+        }
+
+        /** Labels from the top of the tree down to this node, e.g. {@code iso.org.dod.internet}. */
+        public String symbolicPath() {
+            return parent == null ? label() : parent.symbolicPath() + "." + label();
         }
 
         /** Name of the primary definition, or the arc number for unnamed nodes. */

@@ -29,11 +29,12 @@ anything else goes into a later milestone or the backlog.
 
 **Done when:** the bundled IETF MIBs load into a resolved model with full numeric OIDs, covered by tests.
 
-## M3 — MIB browser
+## M3 — MIB browser ✅
 
 - Merged OID tree in a JavaFX `TreeView`, lazily populated.
 - Node icons/styling by kind (object, table, row, column, notification, group, ...).
-- Search/filter by name, numeric OID or description text.
+- Search/filter by name, `MODULE::name`, numeric (or instance) OID, or description text. Matches stay
+  expandable; "Show all children" and "Show in full tree" give the surrounding context on request.
 - Details pane: name, module, numeric and symbolic OID, kind, syntax (with resolved base type and
   constraints), access, status, units, index/augments, enumerations, DEFVAL, description, reference.
 - Copy OID / name to clipboard.

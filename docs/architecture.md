@@ -35,15 +35,15 @@ Base package: `hr.avrbanac.snmptool`.
 
 | Package                  | Responsibility                                                    |
 |--------------------------|-------------------------------------------------------------------|
-| `core.mib`               | Public entry points: `MibLoader`, `MibSource`, `BundledMibs`       |
+| `core.mib`               | Public entry points: `MibLoader`, `MibSource`, `BundledMibs`, `MibSearch` |
 | `core.mib.parse`         | Tokens, lexer, recursive-descent parser, AST, diagnostics         |
 | `core.mib.resolve`       | Turns ASTs from many modules into a resolved model                |
 | `core.mib.model`         | Immutable resolved model: modules, nodes, types, the OID tree, `Oid`, diagnostics |
 | `core.mib.repo`          | On-disk MIB store, index, dependency graph, import/update/remove  |
 | `core.snmp`              | SNMP4J wrapper: sessions, profiles, operations, value decoding    |
-| `app`                    | Application entry point, main window                              |
-| `app.tree`               | Tree view, cell factories, search                                 |
-| `app.details`            | Details pane                                                      |
+| `app`                    | Application entry point, main window, shared UI helpers           |
+| `app.tree`               | Lazy tree view, cells, search box and filtered tree               |
+| `app.details`            | Details pane and text formatting for display                      |
 | `app.ops`                | Operations panel and results table                                |
 | `app.dialog`             | Import, device profile and set dialogs                            |
 

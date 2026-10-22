@@ -44,3 +44,28 @@ initial development phase.
 - 61 bundled IETF and IANA MIB modules (SMI, SNMPv2-MIB, IF-MIB, IP-MIB, HOST-RESOURCES-MIB, SNMP framework
   and security MIBs, DISMAN, RMON, ...), all loading without diagnostics.
 - Tests for the lexer, parser, error recovery, resolver and the bundled MIBs.
+
+### M3 — MIB browser
+
+- Bundled MIBs load in the background at startup; the status bar shows modules, nodes and problems.
+- MIB tree built lazily as nodes are expanded, opening at `mib-2`. Each node shows a kind icon (scalar,
+  table, row, column, notification, group, ...), its name and arc number; deprecated and obsolete
+  definitions are dimmed or struck through.
+- Search (Ctrl+F) by name, `MODULE::name` or numeric OID, optionally also in descriptions; an instance OID
+  such as `ifDescr.3` finds `ifDescr`. The tree is filtered to matches and their ancestors, matches in
+  bold:
+  - a match with no deeper matches is collapsed and can be expanded into its full subtree;
+  - a match or ancestor on the path to deeper matches shows only that path; "Show all children" in the
+    context menu adds the hidden siblings;
+  - "Show in full tree" (double-click, Enter or context menu) clears the search and selects the node in
+    the full tree. Esc clears the search and keeps the selection.
+- Details pane: OID, symbolic path, module, kind, status, syntax with type chain, display hint,
+  enumerations/bits, size and range, access, units, index, augments, columns, default value, group
+  members, reference and source location; module identities also show last update, organization,
+  contact, revisions and imports. Descriptions are shown without the source indentation.
+- When several modules define the same OID (e.g. `RFC1213-MIB` and `IF-MIB`), a chooser switches between
+  the definitions.
+- Copy name, `MODULE::name` or OID from the tree context menu, the details pane or with Ctrl+C.
+- Core: `MibSearch` (name, `MODULE::name`, OID and description search), `OidTree.stream()` and
+  `Node.symbolicPath()`.
+- Tests for search, the filtered tree and description/date formatting.
