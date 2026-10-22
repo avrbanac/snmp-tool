@@ -1,0 +1,80 @@
+# Milestones
+
+Each milestone ends with a working, committed state. Scope listed here is the contract for the milestone;
+anything else goes into a later milestone or the backlog.
+
+## M1 — Project skeleton
+
+- Gradle multi-project build (Kotlin DSL) with wrapper: `core` and `app` subprojects.
+- Java 25 toolchain, JavaFX 25 via the OpenJFX Gradle plugin, JUnit 5.
+- `app` opens an empty main window with the final layout placeholders:
+  tree (left), details (right), operations/results (bottom).
+- `.gitignore`, `.editorconfig`.
+- `./gradlew build` and `./gradlew :app:run` work.
+
+**Done when:** a clean checkout builds, tests run (even if trivial), and the window opens.
+
+## M2 — SMI parser and resolver
+
+- Lexer: identifiers, numbers, hex/binary strings, quoted strings (multi-line), `--` comments, symbols.
+- Parser (hand-written recursive descent) producing an AST per module:
+  `IMPORTS`, `MODULE-IDENTITY`, `OBJECT IDENTIFIER` assignments, `OBJECT-TYPE`, `OBJECT-IDENTITY`,
+  `TEXTUAL-CONVENTION`, `NOTIFICATION-TYPE`, `TRAP-TYPE`, `OBJECT-GROUP`, `NOTIFICATION-GROUP`,
+  `MODULE-COMPLIANCE`, `AGENT-CAPABILITIES`, type assignments including `SEQUENCE`, `CHOICE`, constraints.
+- Lenient error recovery with diagnostics (severity, file, line, column, message).
+- Resolver: imports across modules, OID resolution (including forward and cross-module references),
+  type resolution through textual conventions.
+- Built-in definitions for the SMI macros and base types.
+- Bundled IETF base MIBs as resources; all of them parse and resolve without errors.
+
+**Done when:** the bundled IETF MIBs load into a resolved model with full numeric OIDs, covered by tests.
+
+## M3 — MIB browser
+
+- Merged OID tree in a JavaFX `TreeView`, lazily populated.
+- Node icons/styling by kind (object, table, row, column, notification, group, ...).
+- Search/filter by name, numeric OID or description text.
+- Details pane: name, module, numeric and symbolic OID, kind, syntax (with resolved base type and
+  constraints), access, status, units, index/augments, enumerations, DEFVAL, description, reference.
+- Copy OID / name to clipboard.
+
+**Done when:** the bundled MIBs can be browsed and every node shows its full definition.
+
+## M4 — MIB import and repository
+
+- Local repository directory (default `~/.snmp-tool/mibs`) with an index file.
+- Import single files or folders; detect module name(s) in each file.
+- Dependency graph from `IMPORTS`; report missing modules by name before loading.
+- Revision comparison (`LAST-UPDATED` / `REVISION`) on re-import; replace and reload dependants.
+- Remove a module (with warning about dependants).
+- Diagnostics view listing parser/resolver warnings per module.
+
+**Done when:** vendor MIBs can be imported, updated and removed, and the tree reflects the change.
+
+## M5 — SNMP operations
+
+- Device profiles: host, port, timeout, retries, version.
+- v2c: community strings (read and write).
+- v3: USM user, security level, auth protocol and key, privacy protocol and key, context.
+- Operations from the selected node: get, getNext, walk (GETBULK for v2c/v3), set.
+- Results table: OID, name (resolved via the MIB model), type, raw value, formatted value
+  (enumeration labels, display hints).
+- Set dialog with type-aware input validation.
+- Cancel for running walks.
+
+**Done when:** all four operations work against a real or simulated agent for v2c and v3.
+
+## M6 — Polish and packaging
+
+- Persist device profiles (secrets handled per `docs/snmp-operations.md`), recent devices,
+  window layout and last selection.
+- Export walk results (CSV, text).
+- jpackage installers (Linux at minimum, Windows/macOS as needed).
+- First tagged release `v1.0.0`.
+
+## Backlog (unscheduled)
+
+- Trap/inform receiver.
+- Table view for conceptual tables (rows × columns).
+- MIB source viewer with jump-to-definition.
+- Compare two revisions of a module.
