@@ -20,7 +20,7 @@
 │  mib.repo     MibRepository, ImportPlan, ModuleEntry                  │
 │  settings     SettingsStore, Settings, SavedDevice, WindowLayout      │
 │  snmp         SnmpSession, DeviceProfile, SnmpValue, ResultFormatter, │
-│               ValueParser, DisplayHint                                │
+│               ValueParser, DisplayHint, ResultExport                  │
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -47,7 +47,7 @@ Base package: `hr.avrbanac.snmptool`.
 | `core.mib.model`         | Immutable resolved model: modules, nodes, types, the OID tree, `Oid`, diagnostics |
 | `core.mib.repo`          | MIB store, import planning (`ImportPlan`), import/update/remove   |
 | `core.settings`          | User settings file (`settings.json`): devices, window layout, last selection |
-| `core.snmp`              | SNMP4J wrapper: sessions, profiles, operations, value decoding and parsing |
+| `core.snmp`              | SNMP4J wrapper: sessions, profiles, operations, value decoding, parsing, export |
 | `app`                    | Application entry point, main window, shared UI helpers           |
 | `app.tree`               | Lazy tree view, cells, search box and filtered tree               |
 | `app.details`            | Details pane and text formatting for display                      |

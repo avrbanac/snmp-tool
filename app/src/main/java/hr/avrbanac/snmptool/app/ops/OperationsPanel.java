@@ -10,6 +10,7 @@ import hr.avrbanac.snmptool.core.mib.model.Oid;
 import hr.avrbanac.snmptool.core.mib.model.OidTree;
 import hr.avrbanac.snmptool.core.settings.SavedDevice;
 import hr.avrbanac.snmptool.core.snmp.DeviceProfile;
+import hr.avrbanac.snmptool.core.snmp.ResultExport;
 import hr.avrbanac.snmptool.core.snmp.ResultFormatter;
 import hr.avrbanac.snmptool.core.snmp.SnmpException;
 import hr.avrbanac.snmptool.core.snmp.SnmpSession;
@@ -17,6 +18,12 @@ import hr.avrbanac.snmptool.core.snmp.SnmpValue;
 import hr.avrbanac.snmptool.core.snmp.ValueParser;
 import hr.avrbanac.snmptool.core.snmp.VarBindResult;
 import hr.avrbanac.snmptool.core.snmp.WalkResult;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -26,6 +33,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ReadOnlyBooleanWrapper;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -50,6 +58,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Window;
 
 /**
@@ -60,6 +69,8 @@ import javafx.stage.Window;
  * on first use.
  */
 public final class OperationsPanel {
+
+    private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
     private final ObservableList<Device> devices = FXCollections.observableArrayList();
     private final ComboBox<Device> device = new ComboBox<>(devices);
@@ -81,6 +92,10 @@ public final class OperationsPanel {
 
     private MibModel model;
     private ResultFormatter formatter;
+    /** Device of the last request, named in exports; never includes secrets. */
+    private String resultsDevice = "";
+    private Path exportDirectory;
+    private ResultExport.Format exportFormat = ResultExport.Format.CSV;
     /** Accessed from background threads; guarded by {@code this}. */
     private SnmpSession session;
 
@@ -127,6 +142,10 @@ public final class OperationsPanel {
             b.disableProperty().bind(busy.getReadOnlyProperty().or(device.valueProperty().isNull()));
         }
         stop.setDisable(true);
+        Button export = new Button("Export…");
+        export.setTooltip(new Tooltip("Save the results as CSV or text"));
+        export.setOnAction(_ -> export(false));
+        export.disableProperty().bind(busy.getReadOnlyProperty().or(Bindings.isEmpty(results.getItems())));
         Button clear = new Button("Clear");
         clear.setOnAction(_ -> {
             results.getItems().clear();
@@ -135,7 +154,7 @@ public final class OperationsPanel {
         status.getStyleClass().add("op-status");
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox opRow = new HBox(6, get, getNext, walk, set, stop, status, spacer, clear);
+        HBox opRow = new HBox(6, get, getNext, walk, set, stop, status, spacer, export, clear);
         opRow.setAlignment(Pos.CENTER_LEFT);
         status.setMinWidth(0);
         HBox.setHgrow(status, Priority.SOMETIMES);
@@ -411,6 +430,7 @@ public final class OperationsPanel {
             ready = entered.get();
         }
         moveToTop(ready);
+        resultsDevice = ready.profile().toString();
         return Optional.of(ready.profile());
     }
 
@@ -530,10 +550,66 @@ public final class OperationsPanel {
         copyName.setOnAction(_ -> copy(ResultFormatter.Formatted::name));
         MenuItem copyRows = new MenuItem("Copy rows");
         copyRows.setOnAction(_ -> copy(r -> r.name() + "\t" + r.oid() + "\t" + r.type() + "\t" + r.value()));
+        MenuItem exportSelected = new MenuItem("Export selected rows…");
+        exportSelected.setOnAction(_ -> export(true));
         ContextMenu menu = new ContextMenu(showInTreeItem, useOid, setItem, new SeparatorMenuItem(), copyValue, copyOid,
-                copyName, copyRows);
-        menu.setOnShowing(_ -> setItem.setDisable(busy.get()));
+                copyName, copyRows, new SeparatorMenuItem(), exportSelected);
+        menu.setOnShowing(_ -> {
+            setItem.setDisable(busy.get());
+            exportSelected.setDisable(busy.get() || results.getSelectionModel().isEmpty());
+        });
         results.setContextMenu(menu);
+    }
+
+    /** Saves all results, or the selected rows, to a CSV or text file chosen by the user. */
+    private void export(boolean selectedOnly) {
+        List<ResultFormatter.Formatted> rows = List.copyOf(selectedOnly
+                ? results.getSelectionModel().getSelectedItems()
+                : results.getItems());
+        if (rows.isEmpty()) {
+            return;
+        }
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle(selectedOnly ? "Export selected rows" : "Export results");
+        for (ResultExport.Format f : ResultExport.Format.values()) {
+            FileChooser.ExtensionFilter filter = new FileChooser.ExtensionFilter(
+                    f + " (*." + f.extension() + ")", "*." + f.extension());
+            chooser.getExtensionFilters().add(filter);
+            if (f == exportFormat) {
+                chooser.setSelectedExtensionFilter(filter);
+            }
+        }
+        if (exportDirectory != null && Files.isDirectory(exportDirectory)) {
+            chooser.setInitialDirectory(exportDirectory.toFile());
+        }
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        chooser.setInitialFileName("snmp-results-" + now.format(FILE_TIME) + "." + exportFormat.extension());
+        File chosen = chooser.showSaveDialog(window());
+        if (chosen == null) {
+            return;
+        }
+        int filterIndex = chooser.getExtensionFilters().indexOf(chooser.getSelectedExtensionFilter());
+        ResultExport.Format chosenFormat = filterIndex >= 0 ? ResultExport.Format.values()[filterIndex] : exportFormat;
+        Path file = chosen.toPath();
+        Optional<ResultExport.Format> byName = ResultExport.Format.forFile(file);
+        if (byName.isEmpty()) {
+            // Some platforms' dialogs do not add the extension of the chosen filter.
+            file = file.resolveSibling(file.getFileName() + "." + chosenFormat.extension());
+        }
+        ResultExport.Format format = byName.orElse(chosenFormat);
+        exportDirectory = file.toAbsolutePath().getParent();
+        exportFormat = format;
+        List<String> header = List.of(
+                "SNMP Tool results" + (resultsDevice.isEmpty() ? "" : " from " + resultsDevice),
+                "Exported " + now.toString().replace('T', ' '),
+                rows.size() + (rows.size() == 1 ? " value" : " values"));
+        Path target = file;
+        start("Exporting…");
+        Background.run("export", () -> {
+            ResultExport.write(target, format, rows, header);
+            return target;
+        }, written -> finish("Exported " + rows.size() + (rows.size() == 1 ? " value" : " values") + " to "
+                + written.getFileName(), false), e -> finish("Export failed: " + e.getMessage(), true));
     }
 
     private Optional<ResultFormatter.Formatted> selected() {

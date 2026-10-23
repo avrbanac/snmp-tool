@@ -34,8 +34,11 @@ the tool offers **get, getNext, walk and set** against a single device over SNMP
   enumeration labels, BITS, display hints (MAC addresses, DateAndTime), TimeTicks, units and symbolic OIDs.
 - **Set dialog:** prefilled with the current value, validated against the MIB type (enumerations, ranges,
   sizes), text or hex input.
+- **Export:** results (or selected rows) as CSV or as a text listing.
+- **Saved devices:** device profiles, most recently used first; communities and passphrases are saved only
+  when asked to, otherwise asked for once per run. The window layout and last selection are restored.
 
-Imported MIBs are stored in `~/.snmp-tool/mibs/`.
+Imported MIBs are stored in `~/.snmp-tool/mibs/`, settings and devices in `~/.snmp-tool/settings.json`.
 
 ## Technology
 

@@ -147,5 +147,8 @@ progress: M6 (polish and packaging).
   screen is ignored), divider positions and results column widths, and the last selected MIB tree node is
   selected again once the MIBs have loaded.
 - Small built-in JSON reader/writer, so no JSON library is needed (ADR-007).
-- Tests for the JSON reader/writer and the settings store (round trip, secrets handling, permissions,
-  malformed files, invalid values, window layout and selection).
+- Export of results as CSV (RFC 4180, formula-safe for spreadsheets) or as an `snmpwalk`-style text listing
+  with a header naming the device and time: "Export…" for all rows, "Export selected rows…" in the results
+  context menu; written in the background (core: `ResultExport`).
+- Tests for the export formats, the JSON reader/writer and the settings store (round trip, secrets
+  handling, permissions, malformed files, invalid values, window layout and selection).

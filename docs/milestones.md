@@ -76,7 +76,7 @@ anything else goes into a later milestone or the backlog.
   otherwise asked for once per run (see `docs/snmp-operations.md`).
 - ✅ Recent devices (chooser ordered most recently used first), window layout (size, position, maximized,
   dividers, column widths) and last tree selection, restored at startup.
-- Export walk results (CSV, text).
+- ✅ Export walk results (CSV, text), all rows or the selection.
 - jpackage installers (Linux at minimum, Windows/macOS as needed).
 - First tagged release `v1.0.0`.
 

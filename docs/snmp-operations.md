@@ -24,6 +24,7 @@ the UI depends only on `core` types.
 | `ResultFormatter`| Names and formats results using the MIB model                                    |
 | `DisplayHint`    | RFC 2579 DISPLAY-HINT formatting (octet strings and integers)                    |
 | `ValueParser`    | Parses and validates user input for SET against the MIB type                     |
+| `ResultExport`   | Writes formatted results as CSV or a text listing                                |
 
 ## Device profile
 
@@ -93,6 +94,20 @@ timeout whose message points at the passphrases.
   `DateAndTime`, `255a` text, `d-2` decimals, ...), TimeTicks as durations, symbolic OIDs, UNITS appended;
   octet strings without a hint as text when they are clean UTF-8, otherwise hex.
 - **Raw:** the value without interpretation (number, hex octets, dotted OID).
+
+## Export (`ResultExport`)
+
+"Export…" in the operations panel saves all results, and "Export selected rows…" in the results context
+menu saves the selection, as UTF-8 files written in the background. The format follows the extension
+(`.csv`, `.txt`) or, without one, the file type chosen in the save dialog, whose extension is then added.
+
+- **CSV:** RFC 4180 with CRLF line endings and a header row `Name,Value,Type,OID,Raw` (the table's columns).
+  Fields with commas, quotes, line breaks or edge spaces are quoted. Agent-supplied text starting with
+  `=`, `+`, `-`, `@`, tab or CR gets a leading `'` so spreadsheets do not run it as a formula; plain numbers
+  such as `-5` are left alone.
+- **Text:** `#` header lines (device, export time, value count), then one line per value in the style of
+  `snmpwalk`: `ifDescr.2 (1.3.6.1.2.1.2.2.1.2.2) = OCTET STRING: eth0`, or just the OID when no definition
+  matches. Line breaks inside values are written as `\n`.
 
 ## Set input (`ValueParser`)
 
