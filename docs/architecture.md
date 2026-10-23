@@ -7,6 +7,7 @@
 │  MainWindow                                                           │
 │  ├─ MibTreeView (search, FilteredTree) ──── DetailsPane               │
 │  └─ OperationsPanel (device, OID, results) ── DeviceProfileDialog,    │
+│                                                SecretsDialog,         │
 │                                                SetDialog              │
 │  MibController ── ImportDialog, ModulesWindow (modules / problems)    │
 └────────────────┬──────────────────────────────────────┬───────────────┘
@@ -17,6 +18,7 @@
 │  mib.resolve  Resolver, ModuleNames                       (internal)  │
 │  mib.model    MibModel, MibModule, MibNode, MibType, OidTree, Oid     │
 │  mib.repo     MibRepository, ImportPlan, ModuleEntry                  │
+│  settings     SettingsStore, Settings, SavedDevice                    │
 │  snmp         SnmpSession, DeviceProfile, SnmpValue, ResultFormatter, │
 │               ValueParser, DisplayHint                                │
 └───────────────────────────────────────────────────────────────────────┘
@@ -30,7 +32,7 @@
 | `app`      | JavaFX user interface                       | `core`, JavaFX      |
 
 `core` has no JavaFX dependency so it can be tested headless and reused (for example by a future CLI).
-It exports `core.mib`, `core.mib.model`, `core.mib.repo` and `core.snmp`; `core.mib.parse` and
+It exports `core.mib`, `core.mib.model`, `core.mib.repo`, `core.settings` and `core.snmp`; `core.mib.parse` and
 `core.mib.resolve` are internal. SNMP4J is required by `core` but no SNMP4J type is part of its API.
 
 ## Packages
@@ -44,12 +46,13 @@ Base package: `hr.avrbanac.snmptool`.
 | `core.mib.resolve`       | Turns ASTs from many modules into a resolved model                |
 | `core.mib.model`         | Immutable resolved model: modules, nodes, types, the OID tree, `Oid`, diagnostics |
 | `core.mib.repo`          | MIB store, import planning (`ImportPlan`), import/update/remove   |
+| `core.settings`          | User settings file (`settings.json`): device profiles and selection |
 | `core.snmp`              | SNMP4J wrapper: sessions, profiles, operations, value decoding and parsing |
 | `app`                    | Application entry point, main window, shared UI helpers           |
 | `app.tree`               | Lazy tree view, cells, search box and filtered tree               |
 | `app.details`            | Details pane and text formatting for display                      |
 | `app.mibs`               | `MibController`, import dialog, MIB modules / problems window     |
-| `app.ops`                | Operations panel, results table, device profile and set dialogs   |
+| `app.ops`                | Operations panel, results table, device profile, secrets and set dialogs |
 
 Dialogs live in the package of the feature they belong to (e.g. the import dialog in `app.mibs`).
 
@@ -103,6 +106,6 @@ not needed so far (the installer sets an adequate heap).
 |-------------------|----------------------------------|
 | Imported MIBs     | `~/.snmp-tool/mibs/`             |
 | Import origins    | `~/.snmp-tool/mibs/index.properties` |
-| Settings/profiles | `~/.snmp-tool/settings.json` (planned, M6) |
+| Settings/profiles | `~/.snmp-tool/settings.json` (owner-only; see `snmp-operations.md`) |
 
 Bundled base MIBs are read from the classpath and are never copied into the user store.

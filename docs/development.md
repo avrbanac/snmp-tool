@@ -54,7 +54,8 @@ Compilation uses `-Xlint:all -Werror`, so warnings fail the build.
 - Each fix driven by a real-world MIB adds a minimal regression snippet (see `ResolverTest`
   `acceptsCommonVendorMistakes`).
 - `BundledMibsTest` requires all bundled MIBs to load with zero diagnostics.
-- Repository tests use `@TempDir`; nothing in tests may touch the real `~/.snmp-tool`.
+- Repository and settings tests use `@TempDir` (`new MibRepository(dir)`, `new SettingsStore(file)`); nothing
+  in tests may touch the real `~/.snmp-tool`.
 - UI logic that can be separated from JavaFX rendering (e.g. `FilteredTree`, `TextFormat`) has unit tests
   in `app`.
 - SNMP tests run against `TestAgent`, an in-process SNMP4J agent on 127.0.0.1 (v2c and v3 users for every
@@ -62,8 +63,9 @@ Compilation uses `-Xlint:all -Werror`, so warnings fail the build.
 
 ## Manual checks
 
-- To try the app without touching your own MIB store, start it with a different home directory through
-  the distribution's start script (not via `JAVA_TOOL_OPTIONS`, which would also move Gradle's home):
+- To try the app without touching your own MIB store and settings, start it with a different home
+  directory through the distribution's start script (not via `JAVA_TOOL_OPTIONS`, which would also move
+  Gradle's home):
   ```sh
   ./gradlew :app:installDist
   JAVA_OPTS=-Duser.home=/tmp/snmp-tool-home app/build/install/app/bin/app

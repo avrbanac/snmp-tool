@@ -11,8 +11,8 @@ initial development phase.
 
 ## [0.1.0] - in development
 
-Done: M1–M5 (project skeleton, MIB parser and resolver, MIB browser, MIB import, SNMP operations). Next: M6
-(polish and packaging).
+Done: M1–M5 (project skeleton, MIB parser and resolver, MIB browser, MIB import, SNMP operations). In
+progress: M6 (polish and packaging).
 
 ### M1 — Project skeleton
 
@@ -130,3 +130,17 @@ Done: M1–M5 (project skeleton, MIB parser and resolver, MIB browser, MIB impor
 - Fixed: the details pane could keep showing the previous definition's fields (cached scroll viewport).
 - In-process SNMP test agent and tests for sessions (v2c and all v3 levels), display hints, result
   formatting and set input parsing.
+
+### M6 — Polish and packaging
+
+- Device profiles are saved in `~/.snmp-tool/settings.json` (core: `SettingsStore`, `Settings`,
+  `SavedDevice`) and restored at startup with the last selected device; changes are saved immediately. The
+  file is written atomically with owner-only permissions.
+- Per-device "Remember communities and passphrases" option: without it, secrets are not written to disk and
+  are asked for the first time the device is used after each start (secrets dialog).
+- Lenient settings loading: invalid values fall back to defaults, broken entries are skipped and reported at
+  startup, and a file that is not valid JSON is moved to `settings.json.broken` instead of being overwritten.
+- Removing a device asks for confirmation.
+- Small built-in JSON reader/writer, so no JSON library is needed (ADR-007).
+- Tests for the JSON reader/writer and the settings store (round trip, secrets handling, permissions,
+  malformed files and invalid values).

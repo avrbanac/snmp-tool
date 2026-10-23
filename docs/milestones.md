@@ -72,8 +72,9 @@ anything else goes into a later milestone or the backlog.
 
 ## M6 — Polish and packaging
 
-- Persist device profiles (secrets handled per `docs/snmp-operations.md`), recent devices,
-  window layout and last selection.
+- ✅ Persist device profiles in `~/.snmp-tool/settings.json`; secrets saved only when "remember" is on,
+  otherwise asked for once per run (see `docs/snmp-operations.md`).
+- Recent devices, window layout and last selection.
 - Export walk results (CSV, text).
 - jpackage installers (Linux at minimum, Windows/macOS as needed).
 - First tagged release `v1.0.0`.

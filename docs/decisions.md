@@ -57,3 +57,22 @@ Short records of significant decisions. New decisions are appended; superseded o
 - **Alternatives:** an `index.json` caching module metadata (the original plan in `mib-repository.md`).
 - **Reason:** parsing all modules takes tens of milliseconds, so a cache gains nothing and could go stale;
   `java.util.Properties` needs no JSON library. One file per module makes replace and remove trivial.
+
+## ADR-007 — Device secrets saved only on request, in an owner-only settings file
+
+- **Date:** 2026-10-23
+- **Status:** Accepted
+- **Decision:** Device profiles are saved in `~/.snmp-tool/settings.json`. Communities and v3 passphrases are
+  written only for devices with "Remember communities and passphrases" on, in plain text, in a file created
+  with owner-only permissions. Other devices ask for their secrets the first time they are used after each
+  start. The file is JSON read and written by a small reader/writer in `core.settings`.
+- **Alternatives:**
+  - always save secrets (like net-snmp's `~/.snmp/snmp.conf`) — simplest, but puts every secret on disk;
+  - never save secrets — safest, but tedious for lab devices with well-known communities;
+  - OS keyring (Secret Service, Windows Credential Manager, macOS Keychain) — needs native or third-party
+    dependencies and per-OS testing;
+  - a JSON library (Jackson, Gson) — a dependency for one small file.
+- **Reason:** lets the user choose per device between convenience and keeping secrets off disk, with no new
+  dependencies; owner-only permissions match what command-line SNMP tools do.
+- **Consequence:** remembered secrets are only as safe as the user account. An OS keyring can be added later
+  behind the same "remember" option.

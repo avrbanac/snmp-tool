@@ -7,6 +7,15 @@ import hr.avrbanac.snmptool.app.ops.OperationsPanel;
 import hr.avrbanac.snmptool.app.tree.MibTreeView;
 import hr.avrbanac.snmptool.core.mib.model.MibModel;
 import hr.avrbanac.snmptool.core.mib.repo.MibRepository;
+import hr.avrbanac.snmptool.core.settings.SavedDevice;
+import hr.avrbanac.snmptool.core.settings.Settings;
+import hr.avrbanac.snmptool.core.settings.SettingsStore;
+import hr.avrbanac.snmptool.core.snmp.DeviceProfile;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import javafx.application.Platform;
 import javafx.geometry.Orientation;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
@@ -31,6 +40,7 @@ import javafx.stage.Stage;
  */
 final class MainWindow {
 
+    private static final System.Logger LOG = System.getLogger(MainWindow.class.getName());
     private static final KeyCombination FIND = new KeyCodeCombination(KeyCode.F, KeyCombination.SHORTCUT_DOWN);
     private static final KeyCombination IMPORT = new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN);
 
@@ -41,7 +51,9 @@ final class MainWindow {
     private final MibTreeView treeView = new MibTreeView();
     private final DetailsPane detailsPane = new DetailsPane();
     private final MibController mibs = new MibController(new MibRepository(MibRepository.defaultDirectory()));
-    private final OperationsPanel operations = new OperationsPanel(treeView::showOid);
+    private final OperationsPanel operations = new OperationsPanel(treeView::showOid, this::saveSettings);
+    private final SettingsStore settingsStore = new SettingsStore(SettingsStore.defaultFile());
+    private Settings settings = Settings.empty();
     private ModulesWindow modulesWindow;
 
     MainWindow(Stage stage) {
@@ -64,6 +76,7 @@ final class MainWindow {
         status.textProperty().bind(mibs.statusProperty());
         problems.setOnAction(_ -> showModules(true));
         problems.setVisible(false);
+        loadSettings();
         mibs.reload("");
     }
 
@@ -77,6 +90,46 @@ final class MainWindow {
         treeView.setModel(model, mibs.search());
         problems.setText(MibController.problems(model.diagnostics()));
         problems.setVisible(true);
+    }
+
+    /** Reads the settings file (small, so on the JavaFX thread); a first start gets a localhost device. */
+    private void loadSettings() {
+        List<String> messages = new ArrayList<>();
+        try {
+            SettingsStore.Loaded loaded = settingsStore.load();
+            settings = loaded.settings();
+            messages.addAll(loaded.problems());
+            if (!loaded.existed()) {
+                settings = settings.withDevices(List.of(new SavedDevice(
+                        DeviceProfile.v2c("localhost", "127.0.0.1", "public", "private"), true)), Optional.empty());
+            }
+        } catch (IOException e) {
+            LOG.log(System.Logger.Level.WARNING, "Cannot read " + settingsStore.file(), e);
+            messages.add("Cannot read " + settingsStore.file() + ": " + e.getMessage());
+        }
+        operations.setDevices(settings.devices(), settings.selectedDevice());
+        if (!messages.isEmpty()) {
+            Platform.runLater(() -> warn("Problems in the settings file", String.join("\n", messages)));
+        }
+    }
+
+    /** Writes the current devices to the settings file; called whenever they change. */
+    private void saveSettings() {
+        settings = settings.withDevices(operations.savedDevices(), operations.selectedDevice());
+        try {
+            settingsStore.save(settings);
+        } catch (IOException e) {
+            LOG.log(System.Logger.Level.WARNING, "Cannot write " + settingsStore.file(), e);
+            warn("Cannot save settings", "Cannot write " + settingsStore.file() + ": " + e.getMessage());
+        }
+    }
+
+    private void warn(String header, String text) {
+        Alert alert = new Alert(Alert.AlertType.WARNING, text);
+        alert.initOwner(stage);
+        alert.setTitle("Settings");
+        alert.setHeaderText(header);
+        alert.show();
     }
 
     private void showModules(boolean showProblems) {

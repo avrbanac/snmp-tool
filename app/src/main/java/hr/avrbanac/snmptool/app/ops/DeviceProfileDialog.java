@@ -26,6 +26,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TitledPane;
+import javafx.scene.control.Tooltip;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -34,14 +35,14 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Window;
 
 /**
- * Creates or edits a {@link DeviceProfile}, with live validation and a connection test.
+ * Creates or edits a device's {@link DeviceProfile}, with live validation and a connection test.
  */
 final class DeviceProfileDialog {
 
     private static final Oid SYS_DESCR = Oid.parse("1.3.6.1.2.1.1.1.0");
     private static final Oid SYS_UP_TIME = Oid.parse("1.3.6.1.2.1.1.3.0");
 
-    private final Dialog<DeviceProfile> dialog = new Dialog<>();
+    private final Dialog<Device> dialog = new Dialog<>();
     private final Set<String> otherNames;
     private final Supplier<ResultFormatter> formatter;
     private final SimpleBooleanProperty showSecrets = new SimpleBooleanProperty();
@@ -63,11 +64,12 @@ final class DeviceProfileDialog {
     private final SecretField privPassword = new SecretField(showSecrets);
     private final TextField contextName = new TextField();
     private final TextField contextEngineId = new TextField();
+    private final CheckBox remember = rememberCheckBox();
     private final Label problems = new Label();
     private final Label testResult = new Label();
     private final ButtonType okButton = new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
 
-    private DeviceProfileDialog(Window owner, DeviceProfile initial, Set<String> otherNames,
+    private DeviceProfileDialog(Window owner, Device initial, Set<String> otherNames,
             Supplier<ResultFormatter> formatter) {
         this.otherNames = otherNames;
         this.formatter = formatter;
@@ -86,7 +88,8 @@ final class DeviceProfileDialog {
         maxRepetitions.setEditable(true);
         contextEngineId.setPromptText("hex, empty = discovered");
         contextName.setPromptText("empty = default context");
-        load(initial);
+        load(initial.profile());
+        remember.setSelected(initial.rememberSecrets());
 
         GridPane common = grid();
         row(common, 0, "Name", name);
@@ -129,12 +132,12 @@ final class DeviceProfileDialog {
         testResult.setWrapText(true);
         HBox testRow = new HBox(8, test, testResult);
 
-        VBox content = new VBox(8, common, v2cPane, v3Pane, show, testRow, problems);
+        VBox content = new VBox(8, common, v2cPane, v3Pane, show, remember, testRow, problems);
         content.setPadding(new Insets(4));
         content.setPrefWidth(480);
         dialog.getDialogPane().setContent(content);
         dialog.getDialogPane().getButtonTypes().setAll(okButton, ButtonType.CANCEL);
-        dialog.setResultConverter(b -> b == okButton ? profile() : null);
+        dialog.setResultConverter(b -> b == okButton ? device(initial) : null);
 
         for (var p : List.of(name.textProperty(), host.textProperty(), readCommunity.textProperty(),
                 writeCommunity.textProperty(), user.textProperty(), authPassword.textProperty(),
@@ -153,9 +156,17 @@ final class DeviceProfileDialog {
     }
 
     /** Shows the dialog; {@code otherNames} are the names of the other profiles, which must not be reused. */
-    static Optional<DeviceProfile> show(Window owner, DeviceProfile initial, Set<String> otherNames,
+    static Optional<Device> show(Window owner, Device initial, Set<String> otherNames,
             Supplier<ResultFormatter> formatter) {
         return new DeviceProfileDialog(owner, initial, otherNames, formatter).dialog.showAndWait();
+    }
+
+    /** The "remember secrets" option, shared with {@link SecretsDialog}. */
+    static CheckBox rememberCheckBox() {
+        CheckBox remember = new CheckBox("Remember communities and passphrases");
+        remember.setTooltip(new Tooltip("Saved in the settings file, readable only by you (~/.snmp-tool/settings.json)."
+                + "\nOtherwise they are asked for the first time the device is used after each start."));
+        return remember;
     }
 
     private void load(DeviceProfile p) {
@@ -177,6 +188,18 @@ final class DeviceProfileDialog {
         privPassword.setText(v3.privPassword());
         contextName.setText(v3.contextName());
         contextEngineId.setText(v3.contextEngineId());
+    }
+
+    /** The edited device; secrets count as known once entered, even if they are not remembered. */
+    private Device device(Device initial) {
+        DeviceProfile p = profile();
+        return new Device(p, remember.isSelected(), initial.secretsKnown() || hasSecrets(p));
+    }
+
+    private static boolean hasSecrets(DeviceProfile p) {
+        return p.version() == SnmpVersion.V2C
+                ? !p.readCommunity().isEmpty() || !p.writeCommunity().isEmpty()
+                : !p.v3().level().authenticated() || !p.v3().authPassword().isEmpty();
     }
 
     private DeviceProfile profile() {

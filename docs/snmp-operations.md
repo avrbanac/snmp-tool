@@ -107,8 +107,37 @@ timeout whose message points at the passphrases.
 ## Secrets
 
 Communities and v3 passphrases are entered in masked fields (with a "show" toggle), never logged, and not
-included in `toString()`. In M5 device profiles live only in memory; persisting them (and how secrets are
-stored) is part of M6.
+included in `toString()`.
+
+Device profiles are saved in `~/.snmp-tool/settings.json` (see Settings below). Saving secrets is opt-in per
+device ("Remember communities and passphrases", ADR-007):
+
+- **Remembered:** communities and passphrases are written to the settings file in plain text. The file is
+  replaced atomically and created with owner-only permissions (`rw-------`) where the file system supports
+  POSIX permissions.
+- **Not remembered (default for new devices):** only the non-secret fields are written. After a restart the
+  device asks for its communities or passphrases the first time it is used (a small dialog, which can also
+  turn on "remember"); they then stay in memory until the app exits. v3 devices with `noAuthNoPriv` need
+  no secrets and never ask.
+
+Turning "remember" off removes the secrets from the file at the next save. The default `localhost` device
+created on first start (communities `public` / `private`) remembers its secrets.
+
+## Settings (`core.settings`)
+
+| Type            | Purpose                                                                      |
+|-----------------|------------------------------------------------------------------------------|
+| `Settings`      | Everything kept in `settings.json`: devices in order, the selected device    |
+| `SavedDevice`   | A `DeviceProfile` plus its `rememberSecrets` flag                            |
+| `SettingsStore` | Loads and saves the file; `Loaded` carries the settings and any problems     |
+
+The file is JSON (`"version": 1`) written and read by a small built-in reader/writer, so `core` needs no JSON
+library. Enums are stored by constant name (`V2C`, `AUTH_PRIV`, `SHA256`, ...). Loading is lenient, like the
+MIB parser: wrong types and unknown values fall back to defaults, entries without a name or with a
+duplicate name are skipped, unknown keys are ignored, and every such case is reported as a problem that the
+app shows once at startup. A file that is not valid JSON is moved to `settings.json.broken` so it is not
+overwritten. The app reads the file at startup and saves it whenever a device is added, edited, removed or
+selected.
 
 ## Testing
 

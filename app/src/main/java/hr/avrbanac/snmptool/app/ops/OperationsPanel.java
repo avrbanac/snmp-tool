@@ -8,6 +8,7 @@ import hr.avrbanac.snmptool.core.mib.model.MibNode;
 import hr.avrbanac.snmptool.core.mib.model.NodeKind;
 import hr.avrbanac.snmptool.core.mib.model.Oid;
 import hr.avrbanac.snmptool.core.mib.model.OidTree;
+import hr.avrbanac.snmptool.core.settings.SavedDevice;
 import hr.avrbanac.snmptool.core.snmp.DeviceProfile;
 import hr.avrbanac.snmptool.core.snmp.ResultFormatter;
 import hr.avrbanac.snmptool.core.snmp.SnmpException;
@@ -30,7 +31,9 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Pos;
 import javafx.scene.Parent;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.ContextMenu;
 import javafx.scene.control.Label;
@@ -52,13 +55,13 @@ import javafx.stage.Window;
  * SNMP operations on the selected device: get, getNext, walk and set, with the results table.
  *
  * <p>Requests run in the background, one at a time. The session for the selected device is opened on first
- * use and reused until the device or its settings change.
+ * use and reused until the device or its settings change. Devices whose secrets are not saved ask for them
+ * on first use.
  */
 public final class OperationsPanel {
 
-    private final ObservableList<DeviceProfile> devices = FXCollections.observableArrayList(
-            DeviceProfile.v2c("localhost", "127.0.0.1", "public", "private"));
-    private final ComboBox<DeviceProfile> device = new ComboBox<>(devices);
+    private final ObservableList<Device> devices = FXCollections.observableArrayList();
+    private final ComboBox<Device> device = new ComboBox<>(devices);
     private final TextField oid = new TextField();
     private final Button get = new Button("Get");
     private final Button getNext = new Button("Get Next");
@@ -71,6 +74,9 @@ public final class OperationsPanel {
     private final ReadOnlyBooleanWrapper busy = new ReadOnlyBooleanWrapper();
     private final AtomicBoolean cancel = new AtomicBoolean();
     private final Consumer<Oid> showInTree;
+    private final Runnable devicesChanged;
+    /** Set while devices are being replaced, so that the changes are not reported. */
+    private boolean loadingDevices;
 
     private MibModel model;
     private ResultFormatter formatter;
@@ -78,20 +84,26 @@ public final class OperationsPanel {
     private SnmpSession session;
 
     /**
-     * @param showInTree selects the definition of an OID in the MIB tree
+     * @param showInTree     selects the definition of an OID in the MIB tree
+     * @param devicesChanged called when devices are added, edited or removed, or another device is selected
      */
-    public OperationsPanel(Consumer<Oid> showInTree) {
+    public OperationsPanel(Consumer<Oid> showInTree, Runnable devicesChanged) {
         this.showInTree = showInTree;
-        device.getSelectionModel().selectFirst();
+        this.devicesChanged = devicesChanged;
         device.setPrefWidth(260);
-        device.valueProperty().addListener((_, _, _) -> closeSession());
+        device.valueProperty().addListener((_, _, _) -> {
+            closeSession();
+            if (!loadingDevices) {
+                devicesChanged.run();
+            }
+        });
         Button newDevice = new Button("New…");
         newDevice.setOnAction(_ -> editDevice(Optional.empty()));
         Button editDevice = new Button("Edit…");
         editDevice.setOnAction(_ -> Optional.ofNullable(device.getValue()).ifPresent(d -> editDevice(Optional.of(d))));
         Button removeDevice = new Button("Remove");
         removeDevice.setOnAction(_ -> removeDevice());
-        removeDevice.disableProperty().bind(busy.getReadOnlyProperty());
+        removeDevice.disableProperty().bind(busy.getReadOnlyProperty().or(device.valueProperty().isNull()));
         editDevice.disableProperty().bind(busy.getReadOnlyProperty().or(device.valueProperty().isNull()));
 
         oid.setPromptText("OID, name or name.instance, e.g. sysDescr.0, IF-MIB::ifDescr.3");
@@ -136,6 +148,28 @@ public final class OperationsPanel {
         return root;
     }
 
+    /** Replaces the devices, e.g. with those read from the settings, and selects the named one or the first. */
+    public void setDevices(List<SavedDevice> saved, Optional<String> selected) {
+        loadingDevices = true;
+        try {
+            devices.setAll(saved.stream().map(Device::loaded).toList());
+            device.setValue(devices.stream().filter(d -> selected.map(d.name()::equals).orElse(false)).findFirst()
+                    .orElse(devices.isEmpty() ? null : devices.getFirst()));
+        } finally {
+            loadingDevices = false;
+        }
+    }
+
+    /** The devices to save; secrets are included only for devices that remember them. */
+    public List<SavedDevice> savedDevices() {
+        return devices.stream().map(Device::saved).toList();
+    }
+
+    /** Name of the selected device. */
+    public Optional<String> selectedDevice() {
+        return Optional.ofNullable(device.getValue()).map(Device::name);
+    }
+
     /** Uses a new MIB model for naming and formatting future results. */
     public void setModel(MibModel model) {
         this.model = model;
@@ -177,7 +211,11 @@ public final class OperationsPanel {
         if (root.isEmpty() || formatter == null) {
             return;
         }
-        DeviceProfile profile = device.getValue();
+        Optional<DeviceProfile> ready = readyProfile();
+        if (ready.isEmpty()) {
+            return;
+        }
+        DeviceProfile profile = ready.get();
         ResultFormatter f = formatter;
         results.getItems().clear();
         start("Walking " + f.name(root.get()) + "…");
@@ -204,7 +242,11 @@ public final class OperationsPanel {
         if (formatter == null) {
             return;
         }
-        DeviceProfile profile = device.getValue();
+        Optional<DeviceProfile> ready = readyProfile();
+        if (ready.isEmpty()) {
+            return;
+        }
+        DeviceProfile profile = ready.get();
         ResultFormatter f = formatter;
         Optional<MibNode> node = model.tree().longestPrefix(target).flatMap(OidTree.Node::definition);
         start("Reading current value…");
@@ -235,7 +277,11 @@ public final class OperationsPanel {
         if (formatter == null) {
             return;
         }
-        DeviceProfile profile = device.getValue();
+        Optional<DeviceProfile> ready = readyProfile();
+        if (ready.isEmpty()) {
+            return;
+        }
+        DeviceProfile profile = ready.get();
         ResultFormatter f = formatter;
         start(operation + "…");
         long started = System.nanoTime();
@@ -326,31 +372,76 @@ public final class OperationsPanel {
         }
     }
 
-    private void editDevice(Optional<DeviceProfile> existing) {
-        DeviceProfile initial = existing.orElseGet(() -> DeviceProfile.v2c(uniqueName("device"), "", "public", "private"));
+    /**
+     * The selected device's profile, ready for requests: if its secrets are not known yet, asks for them first.
+     * Empty if no device is selected or the user cancelled.
+     */
+    private Optional<DeviceProfile> readyProfile() {
+        Device current = device.getValue();
+        if (current == null) {
+            return Optional.empty();
+        }
+        if (current.secretsKnown()) {
+            return Optional.of(current.profile());
+        }
+        Optional<Device> entered = SecretsDialog.show(window(), current);
+        entered.ifPresent(d -> replace(current, d));
+        return entered.map(Device::profile);
+    }
+
+    private void editDevice(Optional<Device> existing) {
+        Device initial = existing.orElseGet(() -> new Device(
+                DeviceProfile.v2c(uniqueName("device"), "", "public", "private"), false, true));
         Set<String> otherNames = devices.stream().filter(d -> existing.map(e -> e != d).orElse(true))
-                .map(DeviceProfile::name).collect(Collectors.toSet());
-        DeviceProfileDialog.show(window(), initial, otherNames, () -> formatter).ifPresent(p -> {
+                .map(Device::name).collect(Collectors.toSet());
+        DeviceProfileDialog.show(window(), initial, otherNames, () -> formatter).ifPresent(d -> {
             if (existing.isPresent()) {
-                devices.set(devices.indexOf(existing.get()), p);
+                replace(existing.get(), d);
             } else {
-                devices.add(p);
+                devices.add(d);
+                device.setValue(d);
+                devicesChanged.run();
             }
-            closeSession();
-            device.setValue(p);
         });
     }
 
+    private void replace(Device old, Device updated) {
+        loadingDevices = true;
+        try {
+            devices.set(devices.indexOf(old), updated);
+            closeSession();
+            device.setValue(updated);
+        } finally {
+            loadingDevices = false;
+        }
+        devicesChanged.run();
+    }
+
     private void removeDevice() {
-        DeviceProfile current = device.getValue();
-        if (current != null) {
+        Device current = device.getValue();
+        if (current == null) {
+            return;
+        }
+        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION, "The device and its settings are deleted.",
+                ButtonType.OK, ButtonType.CANCEL);
+        confirm.initOwner(window());
+        confirm.setTitle("Remove device");
+        confirm.setHeaderText("Remove " + current.name() + "?");
+        if (confirm.showAndWait().filter(b -> b == ButtonType.OK).isEmpty()) {
+            return;
+        }
+        loadingDevices = true;
+        try {
             devices.remove(current);
             device.getSelectionModel().selectFirst();
+        } finally {
+            loadingDevices = false;
         }
+        devicesChanged.run();
     }
 
     private String uniqueName(String base) {
-        Set<String> names = devices.stream().map(DeviceProfile::name).collect(Collectors.toSet());
+        Set<String> names = devices.stream().map(Device::name).collect(Collectors.toSet());
         String name = base;
         for (int i = 2; names.contains(name); i++) {
             name = base + "-" + i;

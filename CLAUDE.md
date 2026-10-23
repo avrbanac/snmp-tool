@@ -45,8 +45,8 @@ Read the document relevant to the task before changing code:
   snippet (inline in `ParserTest` / `ResolverTest`, or a file under `core/src/test/resources/` if large).
 - All bundled MIBs must keep loading with zero diagnostics (`BundledMibsTest`).
 - Tests and manual runs must never touch the user's real `~/.snmp-tool`: use `@TempDir` /
-  `new MibRepository(dir)` in tests, and `-Duser.home=<temp dir>` when launching the app for checks
-  (see Manual checks in `docs/development.md`).
+  `new MibRepository(dir)` / `new SettingsStore(file)` in tests, and `-Duser.home=<temp dir>` when launching
+  the app for checks (see Manual checks in `docs/development.md`).
 - Keep large MIB sets in mind (see Performance in `docs/architecture.md`): no per-node or per-module work
   that scans all modules, and nothing proportional to the model size on the JavaFX thread.
 - Long-running work (MIB loading, SNMP requests) never runs on the JavaFX application thread.

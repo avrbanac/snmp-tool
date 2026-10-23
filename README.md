@@ -7,7 +7,7 @@ and read the full definition of any node (OID, syntax, access, status, descripti
 the tool offers **get, getNext, walk and set** against a single device over SNMP v2c or v3.
 
 > Status: initial development (version 0.1.0). The MIB browser, MIB import and SNMP operations are done
-> (milestones M1–M5); polish and packaging (M6) are next. See [docs/milestones.md](docs/milestones.md).
+> (milestones M1–M5); polish and packaging (M6) are in progress. See [docs/milestones.md](docs/milestones.md).
 
 ## Features
 
