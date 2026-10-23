@@ -21,6 +21,7 @@ public final class SnmpToolApp extends Application {
         stage.setMinWidth(800);
         stage.setMinHeight(500);
         stage.setScene(scene);
+        mainWindow.applyLayout();
         stage.show();
     }
 

@@ -141,6 +141,11 @@ progress: M6 (polish and packaging).
 - Lenient settings loading: invalid values fall back to defaults, broken entries are skipped and reported at
   startup, and a file that is not valid JSON is moved to `settings.json.broken` instead of being overwritten.
 - Removing a device asks for confirmation.
+- Recent devices: the device chooser lists devices most recently used first; using or creating a device
+  moves it to the top.
+- The main window reopens with its last size, position and maximized state (a position no longer on any
+  screen is ignored), divider positions and results column widths, and the last selected MIB tree node is
+  selected again once the MIBs have loaded.
 - Small built-in JSON reader/writer, so no JSON library is needed (ADR-007).
 - Tests for the JSON reader/writer and the settings store (round trip, secrets handling, permissions,
-  malformed files and invalid values).
+  malformed files, invalid values, window layout and selection).

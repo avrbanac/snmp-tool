@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import hr.avrbanac.snmptool.core.mib.model.Oid;
 import hr.avrbanac.snmptool.core.snmp.DeviceProfile;
 import hr.avrbanac.snmptool.core.snmp.SnmpVersion;
 import hr.avrbanac.snmptool.core.snmp.V3Security;
@@ -13,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -43,7 +45,8 @@ class SettingsStoreTest {
     @Test
     void roundTripKeepsSecretsOnlyWhenRemembered() throws IOException {
         SettingsStore store = store();
-        store.save(new Settings(List.of(new SavedDevice(V2C, true), new SavedDevice(V3, false)), Optional.of("router")));
+        store.save(Settings.empty().withDevices(List.of(new SavedDevice(V2C, true), new SavedDevice(V3, false)),
+                Optional.of("router")));
 
         String text = Files.readString(store.file());
         assertTrue(text.contains("pub-secret"), text);
@@ -63,9 +66,9 @@ class SettingsStoreTest {
     @Test
     void forgettingSecretsRemovesThemFromTheFile() throws IOException {
         SettingsStore store = store();
-        store.save(new Settings(List.of(new SavedDevice(V3, true)), Optional.empty()));
+        store.save(Settings.empty().withDevices(List.of(new SavedDevice(V3, true)), Optional.empty()));
         assertTrue(Files.readString(store.file()).contains("auth-secret"));
-        store.save(new Settings(List.of(new SavedDevice(V3, false)), Optional.empty()));
+        store.save(Settings.empty().withDevices(List.of(new SavedDevice(V3, false)), Optional.empty()));
         assertFalse(Files.readString(store.file()).contains("auth-secret"));
     }
 
@@ -75,7 +78,7 @@ class SettingsStoreTest {
             return;
         }
         SettingsStore store = store();
-        store.save(new Settings(List.of(new SavedDevice(V2C, true)), Optional.empty()));
+        store.save(Settings.empty().withDevices(List.of(new SavedDevice(V2C, true)), Optional.empty()));
         assertEquals("rw-------", PosixFilePermissions.toString(Files.getPosixFilePermissions(store.file())));
         try (var files = Files.list(store.file().getParent())) {
             assertEquals(List.of(store.file()), files.toList(), "no temporary files left behind");
@@ -131,6 +134,44 @@ class SettingsStoreTest {
                 "Device 2 has no name; skipped",
                 "Device 3 is not an object; skipped",
                 "Device a appears more than once; only the first is kept"), loaded.problems());
+    }
+
+    @Test
+    void windowLayoutAndSelectedOidRoundTrip() throws IOException {
+        SettingsStore store = store();
+        WindowLayout layout = new WindowLayout(-1200, 40, 1400.5, 900, true, 0.3, 0.65,
+                Map.of("Name", 300.0, "Value", 412.25));
+        Settings settings = Settings.empty().withDevices(List.of(new SavedDevice(V2C, false)), Optional.of("switch"))
+                .withWindow(Optional.of(layout), Optional.of(Oid.parse("1.3.6.1.2.1.2.2.1.2")));
+        store.save(settings);
+        SettingsStore.Loaded loaded = store.load();
+        assertTrue(loaded.problems().isEmpty(), loaded.problems().toString());
+        assertEquals(Optional.of(layout), loaded.settings().window());
+        assertEquals(Optional.of(Oid.parse("1.3.6.1.2.1.2.2.1.2")), loaded.settings().selectedOid());
+    }
+
+    @Test
+    void missingOrInvalidLayoutValuesAreUnknown() throws IOException {
+        SettingsStore store = store();
+        Files.createDirectories(store.file().getParent());
+        Files.writeString(store.file(), """
+                { "window": { "width": 1000, "height": "tall", "columnWidths": { "Name": 200, "Raw": -5, "OID": "x" } },
+                  "selectedOid": "sysDescr" }
+                """);
+        SettingsStore.Loaded loaded = store.load();
+        WindowLayout w = loaded.settings().window().orElseThrow();
+        assertEquals(1000, w.width());
+        assertTrue(Double.isNaN(w.x()) && Double.isNaN(w.height()) && Double.isNaN(w.treeDivider()));
+        assertFalse(w.maximized());
+        assertEquals(Map.of("Name", 200.0), w.columnWidths());
+        assertEquals(Optional.empty(), loaded.settings().selectedOid());
+        assertEquals(List.of(
+                "Window: height must be a number; using the default",
+                "Window: OID must be a number; using the default",
+                "Settings: selectedOid \"sysDescr\" is not a numeric OID; ignored"), loaded.problems());
+
+        Files.writeString(store.file(), "{ \"window\": [] }");
+        assertEquals(Optional.empty(), store.load().settings().window());
     }
 
     @Test

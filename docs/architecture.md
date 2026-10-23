@@ -18,7 +18,7 @@
 │  mib.resolve  Resolver, ModuleNames                       (internal)  │
 │  mib.model    MibModel, MibModule, MibNode, MibType, OidTree, Oid     │
 │  mib.repo     MibRepository, ImportPlan, ModuleEntry                  │
-│  settings     SettingsStore, Settings, SavedDevice                    │
+│  settings     SettingsStore, Settings, SavedDevice, WindowLayout      │
 │  snmp         SnmpSession, DeviceProfile, SnmpValue, ResultFormatter, │
 │               ValueParser, DisplayHint                                │
 └───────────────────────────────────────────────────────────────────────┘
@@ -46,7 +46,7 @@ Base package: `hr.avrbanac.snmptool`.
 | `core.mib.resolve`       | Turns ASTs from many modules into a resolved model                |
 | `core.mib.model`         | Immutable resolved model: modules, nodes, types, the OID tree, `Oid`, diagnostics |
 | `core.mib.repo`          | MIB store, import planning (`ImportPlan`), import/update/remove   |
-| `core.settings`          | User settings file (`settings.json`): device profiles and selection |
+| `core.settings`          | User settings file (`settings.json`): devices, window layout, last selection |
 | `core.snmp`              | SNMP4J wrapper: sessions, profiles, operations, value decoding and parsing |
 | `app`                    | Application entry point, main window, shared UI helpers           |
 | `app.tree`               | Lazy tree view, cells, search box and filtered tree               |

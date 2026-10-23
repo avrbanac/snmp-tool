@@ -1,5 +1,6 @@
 package hr.avrbanac.snmptool.core.settings;
 
+import hr.avrbanac.snmptool.core.mib.model.Oid;
 import hr.avrbanac.snmptool.core.snmp.DeviceProfile;
 import hr.avrbanac.snmptool.core.snmp.SnmpVersion;
 import hr.avrbanac.snmptool.core.snmp.V3Security;
@@ -21,7 +22,8 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Reads and writes the user settings file, by default {@code ~/.snmp-tool/settings.json}.
+ * Reads and writes the user settings file, by default {@code ~/.snmp-tool/settings.json}: devices, the main
+ * window layout and the last selection.
  *
  * <p>Communities and passphrases are written only for devices with {@link SavedDevice#rememberSecrets()} on.
  * The file is replaced atomically and, where the file system supports POSIX permissions, readable and
@@ -106,7 +108,39 @@ public final class SettingsStore {
             });
         }
         Optional<String> selected = fields.optionalString("selectedDevice").filter(names::contains);
-        return new Loaded(new Settings(devices, selected), problems, true);
+        Fields windowFields = fields.object("window");
+        Optional<WindowLayout> window = map.get("window") instanceof Map<?, ?>
+                ? Optional.of(readWindow(windowFields))
+                : Optional.empty();
+        Optional<Oid> selectedOid = fields.optionalString("selectedOid").flatMap(oid -> {
+            try {
+                return Optional.of(Oid.parse(oid));
+            } catch (IllegalArgumentException e) {
+                problems.add("Settings: selectedOid \"" + oid + "\" is not a numeric OID; ignored");
+                return Optional.empty();
+            }
+        });
+        return new Loaded(new Settings(devices, selected, window, selectedOid), problems, true);
+    }
+
+    private static WindowLayout readWindow(Fields f) {
+        Fields w = new Fields(f.map, "window", f.problems);
+        double x = w.number("x", Double.NaN);
+        double y = w.number("y", Double.NaN);
+        double width = w.number("width", Double.NaN);
+        double height = w.number("height", Double.NaN);
+        boolean maximized = w.bool("maximized", false);
+        double treeDivider = w.number("treeDivider", Double.NaN);
+        double resultsDivider = w.number("resultsDivider", Double.NaN);
+        Map<String, Double> widths = new LinkedHashMap<>();
+        Fields columns = w.object("columnWidths");
+        for (Object key : columns.map.keySet()) {
+            double columnWidth = columns.number(String.valueOf(key), -1);
+            if (columnWidth > 0) {
+                widths.put(String.valueOf(key), columnWidth);
+            }
+        }
+        return new WindowLayout(x, y, width, height, maximized, treeDivider, resultsDivider, widths);
     }
 
     private static Optional<SavedDevice> readDevice(Fields f) {
@@ -166,6 +200,17 @@ public final class SettingsStore {
                 case Long l when l >= Integer.MIN_VALUE && l <= Integer.MAX_VALUE -> l.intValue();
                 default -> {
                     wrongType(key, "an integer");
+                    yield defaultValue;
+                }
+            };
+        }
+
+        double number(String key, double defaultValue) {
+            return switch (map.get(key)) {
+                case null -> defaultValue;
+                case Number n -> n.doubleValue();
+                default -> {
+                    wrongType(key, "a number");
                     yield defaultValue;
                 }
             };
@@ -236,6 +281,8 @@ public final class SettingsStore {
         root.put("version", (long) FORMAT_VERSION);
         settings.selectedDevice().ifPresent(s -> root.put("selectedDevice", s));
         root.put("devices", settings.devices().stream().map(SettingsStore::deviceJson).toList());
+        settings.window().ifPresent(w -> root.put("window", windowJson(w)));
+        settings.selectedOid().ifPresent(o -> root.put("selectedOid", o.toString()));
 
         Path directory = file.toAbsolutePath().getParent();
         Files.createDirectories(directory);
@@ -251,6 +298,29 @@ public final class SettingsStore {
             }
         } finally {
             Files.deleteIfExists(temp);
+        }
+    }
+
+    private static Map<String, Object> windowJson(WindowLayout w) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        putNumber(m, "x", w.x());
+        putNumber(m, "y", w.y());
+        putNumber(m, "width", w.width());
+        putNumber(m, "height", w.height());
+        m.put("maximized", w.maximized());
+        putNumber(m, "treeDivider", w.treeDivider());
+        putNumber(m, "resultsDivider", w.resultsDivider());
+        Map<String, Object> widths = new LinkedHashMap<>();
+        w.columnWidths().entrySet().stream().sorted(Map.Entry.comparingByKey())
+                .forEach(e -> putNumber(widths, e.getKey(), e.getValue()));
+        m.put("columnWidths", widths);
+        return m;
+    }
+
+    /** Numbers that are not finite (unknown values) are left out; they read back as unknown. */
+    private static void putNumber(Map<String, Object> map, String key, double value) {
+        if (Double.isFinite(value)) {
+            map.put(key, value == Math.rint(value) && Math.abs(value) < 1e15 ? (Object) (long) value : (Object) value);
         }
     }
 

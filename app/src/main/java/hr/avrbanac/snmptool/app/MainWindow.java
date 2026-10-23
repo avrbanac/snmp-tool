@@ -6,10 +6,13 @@ import hr.avrbanac.snmptool.app.mibs.ModulesWindow;
 import hr.avrbanac.snmptool.app.ops.OperationsPanel;
 import hr.avrbanac.snmptool.app.tree.MibTreeView;
 import hr.avrbanac.snmptool.core.mib.model.MibModel;
+import hr.avrbanac.snmptool.core.mib.model.Oid;
+import hr.avrbanac.snmptool.core.mib.model.OidTree;
 import hr.avrbanac.snmptool.core.mib.repo.MibRepository;
 import hr.avrbanac.snmptool.core.settings.SavedDevice;
 import hr.avrbanac.snmptool.core.settings.Settings;
 import hr.avrbanac.snmptool.core.settings.SettingsStore;
+import hr.avrbanac.snmptool.core.settings.WindowLayout;
 import hr.avrbanac.snmptool.core.snmp.DeviceProfile;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -33,6 +36,7 @@ import javafx.scene.input.KeyCombination;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 
 /**
@@ -53,7 +57,16 @@ final class MainWindow {
     private final MibController mibs = new MibController(new MibRepository(MibRepository.defaultDirectory()));
     private final OperationsPanel operations = new OperationsPanel(treeView::showOid, this::saveSettings);
     private final SettingsStore settingsStore = new SettingsStore(SettingsStore.defaultFile());
+    private final SplitPane browser = new SplitPane(treeView.root(), detailsPane.root());
+    private final SplitPane content = new SplitPane(browser, operations.root());
     private Settings settings = Settings.empty();
+    /** Tree selection from the settings, applied when the first model is shown. */
+    private Optional<Oid> pendingSelection = Optional.empty();
+    /** Window bounds while neither maximized nor minimized, saved as the layout. */
+    private double normalX = Double.NaN;
+    private double normalY = Double.NaN;
+    private double normalWidth = Double.NaN;
+    private double normalHeight = Double.NaN;
     private ModulesWindow modulesWindow;
 
     MainWindow(Stage stage) {
@@ -71,7 +84,10 @@ final class MainWindow {
             detailsPane.show(node);
             operations.setSelectedNode(node);
         });
-        stage.setOnHidden(_ -> operations.close());
+        stage.setOnHidden(_ -> {
+            saveLayout();
+            operations.close();
+        });
         mibs.modelProperty().addListener((_, _, model) -> showModel(model));
         status.textProperty().bind(mibs.statusProperty());
         problems.setOnAction(_ -> showModules(true));
@@ -88,6 +104,8 @@ final class MainWindow {
         detailsPane.setModel(model);
         operations.setModel(model);
         treeView.setModel(model, mibs.search());
+        pendingSelection.ifPresent(treeView::showOid);
+        pendingSelection = Optional.empty();
         problems.setText(MibController.problems(model.diagnostics()));
         problems.setVisible(true);
     }
@@ -108,6 +126,7 @@ final class MainWindow {
             messages.add("Cannot read " + settingsStore.file() + ": " + e.getMessage());
         }
         operations.setDevices(settings.devices(), settings.selectedDevice());
+        pendingSelection = settings.selectedOid();
         if (!messages.isEmpty()) {
             Platform.runLater(() -> warn("Problems in the settings file", String.join("\n", messages)));
         }
@@ -121,6 +140,65 @@ final class MainWindow {
         } catch (IOException e) {
             LOG.log(System.Logger.Level.WARNING, "Cannot write " + settingsStore.file(), e);
             warn("Cannot save settings", "Cannot write " + settingsStore.file() + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Restores the saved window size, position, maximized state, dividers and column widths; call before the
+     * stage is shown. A position that is no longer on any screen is ignored, so the window opens centered.
+     */
+    void applyLayout() {
+        settings.window().ifPresent(w -> {
+            if (w.width() >= stage.getMinWidth() && w.height() >= stage.getMinHeight()) {
+                stage.setWidth(w.width());
+                stage.setHeight(w.height());
+                if (Double.isFinite(w.x()) && Double.isFinite(w.y())
+                        && !Screen.getScreensForRectangle(w.x(), w.y(), w.width(), w.height()).isEmpty()) {
+                    stage.setX(w.x());
+                    stage.setY(w.y());
+                }
+            }
+            stage.setMaximized(w.maximized());
+            if (w.treeDivider() > 0 && w.treeDivider() < 1) {
+                browser.setDividerPositions(w.treeDivider());
+            }
+            if (w.resultsDivider() > 0 && w.resultsDivider() < 1) {
+                content.setDividerPositions(w.resultsDivider());
+            }
+            operations.setColumnWidths(w.columnWidths());
+        });
+        stage.xProperty().addListener((_, _, _) -> rememberBounds());
+        stage.yProperty().addListener((_, _, _) -> rememberBounds());
+        stage.widthProperty().addListener((_, _, _) -> rememberBounds());
+        stage.heightProperty().addListener((_, _, _) -> rememberBounds());
+    }
+
+    private void rememberBounds() {
+        if (!stage.isMaximized() && !stage.isIconified() && !stage.isFullScreen()) {
+            normalX = stage.getX();
+            normalY = stage.getY();
+            normalWidth = stage.getWidth();
+            normalHeight = stage.getHeight();
+        }
+    }
+
+    /** Saves the window layout and tree selection; called when the window closes. */
+    private void saveLayout() {
+        Optional<WindowLayout> previous = settings.window();
+        boolean known = Double.isFinite(normalWidth);
+        WindowLayout layout = new WindowLayout(
+                known ? normalX : previous.map(WindowLayout::x).orElse(Double.NaN),
+                known ? normalY : previous.map(WindowLayout::y).orElse(Double.NaN),
+                known ? normalWidth : previous.map(WindowLayout::width).orElse(Double.NaN),
+                known ? normalHeight : previous.map(WindowLayout::height).orElse(Double.NaN),
+                stage.isMaximized(), browser.getDividerPositions()[0], content.getDividerPositions()[0],
+                operations.columnWidths());
+        Optional<Oid> selected = Optional.ofNullable(treeView.selectedNodeProperty().get()).map(OidTree.Node::oid);
+        settings = settings.withWindow(Optional.of(layout), selected);
+        try {
+            settingsStore.save(settings);
+        } catch (IOException e) {
+            LOG.log(System.Logger.Level.WARNING, "Cannot write " + settingsStore.file(), e);
         }
     }
 
@@ -167,10 +245,7 @@ final class MainWindow {
     }
 
     private Parent createContent() {
-        SplitPane browser = new SplitPane(treeView.root(), detailsPane.root());
         browser.setDividerPositions(0.35);
-
-        SplitPane content = new SplitPane(browser, operations.root());
         content.setOrientation(Orientation.VERTICAL);
         content.setDividerPositions(0.6);
         return content;

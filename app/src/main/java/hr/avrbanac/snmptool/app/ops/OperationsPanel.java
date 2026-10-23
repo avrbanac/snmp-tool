@@ -18,6 +18,7 @@ import hr.avrbanac.snmptool.core.snmp.ValueParser;
 import hr.avrbanac.snmptool.core.snmp.VarBindResult;
 import hr.avrbanac.snmptool.core.snmp.WalkResult;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -85,15 +86,16 @@ public final class OperationsPanel {
 
     /**
      * @param showInTree     selects the definition of an OID in the MIB tree
-     * @param devicesChanged called when devices are added, edited or removed, or another device is selected
+     * @param devicesChanged called when devices are added, edited, removed or reordered, or another device is
+     *                       selected
      */
     public OperationsPanel(Consumer<Oid> showInTree, Runnable devicesChanged) {
         this.showInTree = showInTree;
         this.devicesChanged = devicesChanged;
         device.setPrefWidth(260);
         device.valueProperty().addListener((_, _, _) -> {
-            closeSession();
             if (!loadingDevices) {
+                closeSession();
                 devicesChanged.run();
             }
         });
@@ -150,6 +152,7 @@ public final class OperationsPanel {
 
     /** Replaces the devices, e.g. with those read from the settings, and selects the named one or the first. */
     public void setDevices(List<SavedDevice> saved, Optional<String> selected) {
+        closeSession();
         loadingDevices = true;
         try {
             devices.setAll(saved.stream().map(Device::loaded).toList());
@@ -160,7 +163,7 @@ public final class OperationsPanel {
         }
     }
 
-    /** The devices to save; secrets are included only for devices that remember them. */
+    /** The devices to save, most recently used first; secrets are kept only for devices that remember them. */
     public List<SavedDevice> savedDevices() {
         return devices.stream().map(Device::saved).toList();
     }
@@ -168,6 +171,22 @@ public final class OperationsPanel {
     /** Name of the selected device. */
     public Optional<String> selectedDevice() {
         return Optional.ofNullable(device.getValue()).map(Device::name);
+    }
+
+    /** Widths of the results table columns, by column title. */
+    public Map<String, Double> columnWidths() {
+        return results.getColumns().stream()
+                .collect(Collectors.toMap(TableColumn::getText, TableColumn::getWidth, (a, _) -> a));
+    }
+
+    /** Restores column widths saved with {@link #columnWidths()}; unknown titles are ignored. */
+    public void setColumnWidths(Map<String, Double> widths) {
+        for (TableColumn<ResultFormatter.Formatted, ?> column : results.getColumns()) {
+            Double width = widths.get(column.getText());
+            if (width != null) {
+                column.setPrefWidth(width);
+            }
+        }
     }
 
     /** Uses a new MIB model for naming and formatting future results. */
@@ -374,19 +393,40 @@ public final class OperationsPanel {
 
     /**
      * The selected device's profile, ready for requests: if its secrets are not known yet, asks for them first.
-     * Empty if no device is selected or the user cancelled.
+     * The device moves to the top of the list, which is kept most recently used first. Empty if no device is
+     * selected or the user cancelled.
      */
     private Optional<DeviceProfile> readyProfile() {
         Device current = device.getValue();
         if (current == null) {
             return Optional.empty();
         }
-        if (current.secretsKnown()) {
-            return Optional.of(current.profile());
+        Device ready = current;
+        if (!current.secretsKnown()) {
+            Optional<Device> entered = SecretsDialog.show(window(), current);
+            if (entered.isEmpty()) {
+                return Optional.empty();
+            }
+            replace(current, entered.get());
+            ready = entered.get();
         }
-        Optional<Device> entered = SecretsDialog.show(window(), current);
-        entered.ifPresent(d -> replace(current, d));
-        return entered.map(Device::profile);
+        moveToTop(ready);
+        return Optional.of(ready.profile());
+    }
+
+    private void moveToTop(Device used) {
+        if (devices.indexOf(used) <= 0) {
+            return;
+        }
+        loadingDevices = true;
+        try {
+            devices.remove(used);
+            devices.add(0, used);
+            device.setValue(used);
+        } finally {
+            loadingDevices = false;
+        }
+        devicesChanged.run();
     }
 
     private void editDevice(Optional<Device> existing) {
@@ -398,7 +438,7 @@ public final class OperationsPanel {
             if (existing.isPresent()) {
                 replace(existing.get(), d);
             } else {
-                devices.add(d);
+                devices.add(0, d);
                 device.setValue(d);
                 devicesChanged.run();
             }
@@ -430,6 +470,7 @@ public final class OperationsPanel {
         if (confirm.showAndWait().filter(b -> b == ButtonType.OK).isEmpty()) {
             return;
         }
+        closeSession();
         loadingDevices = true;
         try {
             devices.remove(current);

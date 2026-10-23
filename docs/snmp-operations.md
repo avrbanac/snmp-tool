@@ -127,8 +127,9 @@ created on first start (communities `public` / `private`) remembers its secrets.
 
 | Type            | Purpose                                                                      |
 |-----------------|------------------------------------------------------------------------------|
-| `Settings`      | Everything kept in `settings.json`: devices in order, the selected device    |
+| `Settings`      | Contents of `settings.json`: devices, selection, window layout, tree node    |
 | `SavedDevice`   | A `DeviceProfile` plus its `rememberSecrets` flag                            |
+| `WindowLayout`  | Window bounds (not maximized), maximized, dividers, results column widths    |
 | `SettingsStore` | Loads and saves the file; `Loaded` carries the settings and any problems     |
 
 The file is JSON (`"version": 1`) written and read by a small built-in reader/writer, so `core` needs no JSON
@@ -136,8 +137,14 @@ library. Enums are stored by constant name (`V2C`, `AUTH_PRIV`, `SHA256`, ...). 
 MIB parser: wrong types and unknown values fall back to defaults, entries without a name or with a
 duplicate name are skipped, unknown keys are ignored, and every such case is reported as a problem that the
 app shows once at startup. A file that is not valid JSON is moved to `settings.json.broken` so it is not
-overwritten. The app reads the file at startup and saves it whenever a device is added, edited, removed or
-selected.
+overwritten. Layout values that are missing or invalid are unknown (`NaN`) and keep the default layout.
+
+The app reads the file at startup and saves it whenever a device is added, edited, removed, selected or
+used, and once more when the main window closes (window layout and tree selection). The device chooser
+keeps devices most recently used first: sending a request with a device, or creating one, moves it to the
+top. At startup the window gets its saved size and position (ignored if no screen shows that position
+any more, e.g. after unplugging a monitor), maximized state, dividers and column widths, and the saved tree
+node is selected once the MIBs have loaded.
 
 ## Testing
 
