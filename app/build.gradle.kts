@@ -29,8 +29,9 @@ application {
 
 val packageType = providers.gradleProperty("packageType").getOrElse("app-image")
 val appName = "snmp-tool"
-// Optional icon per platform: packaging/linux/snmp-tool.png, packaging/windows/snmp-tool.ico,
-// packaging/macos/snmp-tool.icns. None is committed yet; jpackage uses its default icon without one.
+// Icon per platform, rendered from packaging/snmp-tool.svg by packaging/render-icons.sh:
+// packaging/linux/snmp-tool.png, packaging/windows/snmp-tool.ico; macOS (packaging/macos/snmp-tool.icns)
+// has none yet, so jpackage uses its default icon there.
 val osName = System.getProperty("os.name").lowercase()
 val iconFile = layout.projectDirectory.file(
     when {

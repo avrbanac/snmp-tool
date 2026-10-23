@@ -78,7 +78,7 @@ anything else goes into a later milestone or the backlog.
   dividers, column widths) and last tree selection, restored at startup.
 - ✅ Export walk results (CSV, text), all rows or the selection.
 - ✅ jpackage packaging: `./gradlew :app:jpackage` (app image by default; `-PpackageType=deb|rpm|msi|dmg`
-  on the matching platform). Open: application icon, installers built on a machine with the tools.
+  on the matching platform), with the application icon.
 - First tagged release `v1.0.0`.
 
 ## Backlog (unscheduled)

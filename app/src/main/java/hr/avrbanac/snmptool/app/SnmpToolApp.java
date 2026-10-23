@@ -2,6 +2,7 @@ package hr.avrbanac.snmptool.app;
 
 import javafx.application.Application;
 import javafx.scene.Scene;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
 /**
@@ -18,6 +19,10 @@ public final class SnmpToolApp extends Application {
         scene.getStylesheets().add(stylesheet());
 
         stage.setTitle(TITLE);
+        for (int size : new int[] {16, 32, 48, 64, 128, 256}) {
+            stage.getIcons().add(new Image(SnmpToolApp.class.getResource("icons/snmp-tool-" + size + ".png")
+                    .toExternalForm()));
+        }
         stage.setMinWidth(800);
         stage.setMinHeight(500);
         stage.setScene(scene);

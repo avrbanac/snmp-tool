@@ -92,9 +92,11 @@ result to `app/build/jpackage/<type>/`.
 `--enable-native-access=javafx.graphics` and `-XX:MaxRAMPercentage=50`, enough for large MIB sets (see
 Performance in `architecture.md`).
 
-**Icon:** the task uses `app/packaging/linux/snmp-tool.png`, `app/packaging/windows/snmp-tool.ico` or
-`app/packaging/macos/snmp-tool.icns` when present, otherwise `jpackage`'s default icon. None is committed
-yet; the icon must be made from the supplied logo files, not drawn.
+**Icon:** an OID tree in BULB blue and white (not the BULB logo). The source is `app/packaging/snmp-tool.svg`;
+`app/packaging/render-icons.sh` (needs `rsvg-convert` and ImageMagick) renders the window icons
+(`app/src/main/resources/.../app/icons/`), `app/packaging/linux/snmp-tool.png` and
+`app/packaging/windows/snmp-tool.ico`. The task uses the file for the current platform when present; macOS
+has no `.icns` yet and gets `jpackage`'s default icon.
 
 To try a package without touching your own `~/.snmp-tool`, copy the app image and add
 `java-options=-Duser.home=/tmp/snmp-tool-home` to the copy's `lib/app/snmp-tool.cfg`.
