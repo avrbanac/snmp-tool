@@ -60,7 +60,11 @@ Requires JDK 25. The Gradle wrapper downloads Gradle itself.
 ```sh
 ./gradlew build        # compile and run tests
 ./gradlew :app:run     # start the application
+./gradlew :app:jpackage                     # self-contained app image in app/build/jpackage/
+./gradlew :app:jpackage -PpackageType=deb   # or rpm / msi / dmg, on the matching platform
 ```
+
+See Packaging in [docs/development.md](docs/development.md) for what each package type needs.
 
 ## Documentation
 

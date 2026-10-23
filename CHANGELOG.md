@@ -150,5 +150,9 @@ progress: M6 (polish and packaging).
 - Export of results as CSV (RFC 4180, formula-safe for spreadsheets) or as an `snmpwalk`-style text listing
   with a header naming the device and time: "Export…" for all rows, "Export selected rows…" in the results
   context menu; written in the background (core: `ResultExport`).
+- Packaging with `jpackage` (`./gradlew :app:jpackage`): a self-contained app image with a trimmed runtime
+  by default, or a `.deb`, `.rpm`, `.msi` or `.dmg` installer with `-PpackageType=...` on the matching
+  platform; no packaging plugin needed since all dependencies are JPMS modules. Optional per-platform
+  icon from `app/packaging/`.
 - Tests for the export formats, the JSON reader/writer and the settings store (round trip, secrets
   handling, permissions, malformed files, invalid values, window layout and selection).

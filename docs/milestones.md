@@ -77,7 +77,8 @@ anything else goes into a later milestone or the backlog.
 - ✅ Recent devices (chooser ordered most recently used first), window layout (size, position, maximized,
   dividers, column widths) and last tree selection, restored at startup.
 - ✅ Export walk results (CSV, text), all rows or the selection.
-- jpackage installers (Linux at minimum, Windows/macOS as needed).
+- ✅ jpackage packaging: `./gradlew :app:jpackage` (app image by default; `-PpackageType=deb|rpm|msi|dmg`
+  on the matching platform). Open: application icon, installers built on a machine with the tools.
 - First tagged release `v1.0.0`.
 
 ## Backlog (unscheduled)

@@ -11,7 +11,7 @@
 ./gradlew build              # compile and test all subprojects
 ./gradlew :core:test         # core tests only
 ./gradlew :app:run           # start the application
-./gradlew :app:jpackage      # build a native installer (from M6)
+./gradlew :app:jpackage      # build a self-contained app image (see Packaging)
 ```
 
 ## Repository layout
@@ -72,6 +72,32 @@ Compilation uses `-Xlint:all -Werror`, so warnings fail the build.
   ```
 - Large-set behaviour was measured with the LibreNMS MIB collection (`mibs/` of
   github.com/librenms/librenms, ~4,900 files); see Performance in `docs/architecture.md`.
+
+## Packaging
+
+`./gradlew :app:jpackage` builds the application with the JDK's `jpackage`. All modules (app, core, SNMP4J,
+JavaFX) are explicit JPMS modules, so `jpackage` links a trimmed runtime with `jlink` itself; no Gradle
+packaging plugin is needed. The task stages the module jars in `app/build/jpackage/modules/` and writes the
+result to `app/build/jpackage/<type>/`.
+
+| Command                                   | Result                                    | Needs                  |
+|-------------------------------------------|-------------------------------------------|------------------------|
+| `./gradlew :app:jpackage`                 | App image: `snmp-tool/bin/snmp-tool` with its own runtime (~100 MB) | — |
+| `./gradlew :app:jpackage -PpackageType=deb` | `.deb` installer with menu entry       | `dpkg-deb`, `fakeroot` |
+| `./gradlew :app:jpackage -PpackageType=rpm` | `.rpm` installer with menu entry       | `rpmbuild`             |
+| `./gradlew :app:jpackage -PpackageType=msi` | Windows installer (menu, shortcut, directory chooser) | WiX Toolset |
+| `./gradlew :app:jpackage -PpackageType=dmg` | macOS disk image                       | macOS                  |
+
+`jpackage` only builds for the platform it runs on. The launcher starts the app with
+`--enable-native-access=javafx.graphics` and `-XX:MaxRAMPercentage=50`, enough for large MIB sets (see
+Performance in `architecture.md`).
+
+**Icon:** the task uses `app/packaging/linux/snmp-tool.png`, `app/packaging/windows/snmp-tool.ico` or
+`app/packaging/macos/snmp-tool.icns` when present, otherwise `jpackage`'s default icon. None is committed
+yet; the icon must be made from the supplied logo files, not drawn.
+
+To try a package without touching your own `~/.snmp-tool`, copy the app image and add
+`java-options=-Duser.home=/tmp/snmp-tool-home` to the copy's `lib/app/snmp-tool.cfg`.
 
 ## Commits and versioning
 
