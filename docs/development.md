@@ -88,7 +88,17 @@ result to `app/build/jpackage/<type>/`.
 | `./gradlew :app:jpackage -PpackageType=msi` | Windows installer (menu, shortcut, directory chooser) | WiX Toolset |
 | `./gradlew :app:jpackage -PpackageType=dmg` | macOS disk image                       | macOS                  |
 
-`jpackage` only builds for the platform it runs on. The launcher starts the app with
+`jpackage` only builds for the platform it runs on. By default it comes from the Java 25 toolchain, and the
+package contains that JDK's runtime. A distribution JDK built against a new glibc (e.g. Arch/CachyOS: glibc
+2.38+) produces packages that do not start on older distributions, so **release builds** use Eclipse
+Temurin (glibc 2.17+), passed with `-PjpackageJdk`:
+
+```sh
+./gradlew clean :app:jpackage -PjpackageJdk=/path/to/jdk-25.0.5+8
+```
+
+Temurin 25 ships no `jmods`; `jpackage` then links from the JDK's own runtime image (JEP 493) and prints
+"No JDK Modules found", which is harmless. The launcher starts the app with
 `--enable-native-access=javafx.graphics` and `-XX:MaxRAMPercentage=50`, enough for large MIB sets (see
 Performance in `architecture.md`).
 

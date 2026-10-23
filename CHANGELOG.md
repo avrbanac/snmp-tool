@@ -11,6 +11,11 @@ During that phase the version was 0.1.0, which was never released.
 
 ## [Unreleased]
 
+### Added
+
+- `-PjpackageJdk=<path>` for `:app:jpackage` to package with a specific JDK; release builds use Eclipse
+  Temurin so the Linux package runs on glibc 2.17+ instead of the build machine's glibc.
+
 ## [1.0.0] - 2026-10-23
 
 First release: a MIB browser with MIB import, get/getNext/walk/set over SNMP v2c and v3, saved devices,

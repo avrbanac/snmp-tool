@@ -28,6 +28,9 @@ application {
 // built with -PpackageType=deb|rpm (Linux), msi|exe (Windows) or dmg|pkg (macOS), on that platform.
 
 val packageType = providers.gradleProperty("packageType").getOrElse("app-image")
+// JDK whose jpackage (and therefore runtime) is used; defaults to the Java 25 toolchain. Release builds use a
+// JDK built against an older glibc (e.g. Eclipse Temurin) so the package runs on older distributions.
+val jpackageJdk = providers.gradleProperty("jpackageJdk")
 val appName = "snmp-tool"
 // Icon per platform, rendered from packaging/snmp-tool.svg by packaging/render-icons.sh:
 // packaging/linux/snmp-tool.png, packaging/windows/snmp-tool.ico; macOS (packaging/macos/snmp-tool.icns)
@@ -58,12 +61,15 @@ tasks.register<Exec>("jpackage") {
     val output = layout.buildDirectory.dir("jpackage/$packageType")
     inputs.files(jpackageInput)
     inputs.property("packageType", packageType)
+    inputs.property("jpackageJdk", jpackageJdk.getOrElse(""))
     outputs.dir(output)
 
     doFirst {
         // jpackage refuses to overwrite earlier output.
         delete(output)
-        val jpackage = launcher.get().metadata.installationPath.file("bin/jpackage").asFile
+        val jdk = jpackageJdk.map { file(it) }.getOrElse(launcher.get().metadata.installationPath.asFile)
+        val jpackage = jdk.resolve("bin/jpackage")
+        check(jpackage.isFile) { "No jpackage in $jdk" }
         val args = mutableListOf(
             jpackage.absolutePath,
             "--type", packageType,
