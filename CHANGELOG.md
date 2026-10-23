@@ -5,14 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-During the initial development phase the version stays at **0.1.0** and all work is recorded under it,
-grouped by milestone (see [docs/milestones.md](docs/milestones.md)). Regular versioning starts after the
-initial development phase.
+Changes since the last release are collected under **[Unreleased]**. Version 1.0.0 is the first release;
+its notes record the initial development, grouped by milestone (see [docs/milestones.md](docs/milestones.md)).
+During that phase the version was 0.1.0, which was never released.
 
-## [0.1.0] - in development
+## [Unreleased]
 
-Done: M1–M5 (project skeleton, MIB parser and resolver, MIB browser, MIB import, SNMP operations). In
-progress: M6 (polish and packaging).
+## [1.0.0] - 2026-10-23
+
+First release: a MIB browser with MIB import, get/getNext/walk/set over SNMP v2c and v3, saved devices,
+result export and native packaging (milestones M1–M6).
 
 ### M1 — Project skeleton
 

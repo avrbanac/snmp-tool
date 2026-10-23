@@ -70,16 +70,20 @@ anything else goes into a later milestone or the backlog.
 **Done when:** all four operations work against a real or simulated agent for v2c and v3.
 (Verified against the in-process test agent, including every v3 security level.)
 
-## M6 — Polish and packaging
+## M6 — Polish and packaging ✅
 
-- ✅ Persist device profiles in `~/.snmp-tool/settings.json`; secrets saved only when "remember" is on,
+- Persist device profiles in `~/.snmp-tool/settings.json`; secrets saved only when "remember" is on,
   otherwise asked for once per run (see `docs/snmp-operations.md`).
-- ✅ Recent devices (chooser ordered most recently used first), window layout (size, position, maximized,
+- Recent devices (chooser ordered most recently used first), window layout (size, position, maximized,
   dividers, column widths) and last tree selection, restored at startup.
-- ✅ Export walk results (CSV, text), all rows or the selection.
-- ✅ jpackage packaging: `./gradlew :app:jpackage` (app image by default; `-PpackageType=deb|rpm|msi|dmg`
+- Export walk results (CSV, text), all rows or the selection.
+- jpackage packaging: `./gradlew :app:jpackage` (app image by default; `-PpackageType=deb|rpm|msi|dmg`
   on the matching platform), with the application icon.
 - First tagged release `v1.0.0`.
+
+**Done when:** profiles survive a restart, results can be exported, and a packaged build starts on Linux.
+(Released as `v1.0.0` on 2026-10-23; the Linux app image was built and started, `.deb`/`.rpm` need
+`dpkg-deb`/`rpmbuild` on the build machine.)
 
 ## Backlog (unscheduled)
 

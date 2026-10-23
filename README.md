@@ -6,8 +6,8 @@ The focus is on **browsing MIBs**: import MIB files, see every loaded module mer
 and read the full definition of any node (OID, syntax, access, status, description). On top of the browser,
 the tool offers **get, getNext, walk and set** against a single device over SNMP v2c or v3.
 
-> Status: initial development (version 0.1.0). The MIB browser, MIB import and SNMP operations are done
-> (milestones M1–M5); polish and packaging (M6) are in progress. See [docs/milestones.md](docs/milestones.md).
+> Status: version 1.0.0, the first release (milestones M1–M6, see [docs/milestones.md](docs/milestones.md)).
+> Changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Features
 

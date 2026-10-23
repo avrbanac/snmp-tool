@@ -105,7 +105,10 @@ To try a package without touching your own `~/.snmp-tool`, copy the app image an
 
 - Branch `main` is always buildable.
 - Commit subjects use conventional prefixes: `feat:`, `fix:`, `docs:`, `build:`, `test:`, `refactor:`, `chore:`.
-- During initial development the version stays `0.1.0`; `CHANGELOG.md` records what was built under
-  `[0.1.0]`, with one section per milestone.
-- After the initial development phase, releases are tagged `vMAJOR.MINOR.PATCH` and changes go under
-  `[Unreleased]` until the next release.
+- The version is set in `buildSrc/src/main/kotlin/snmptool.java-conventions.gradle.kts` and follows
+  semantic versioning. Releases are tagged `vMAJOR.MINOR.PATCH` (annotated tags); the first was `v1.0.0`.
+- `CHANGELOG.md` collects changes under `[Unreleased]` (Keep a Changelog sections: Added, Changed, Fixed,
+  Removed). A release renames that section to the version and date, bumps the version, commits
+  (`chore: release vX.Y.Z`) and tags the commit.
+- The initial development (version 0.1.0, never released) is recorded in the `[1.0.0]` notes, one section
+  per milestone.

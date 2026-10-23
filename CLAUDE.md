@@ -52,7 +52,8 @@ Read the document relevant to the task before changing code:
 - Long-running work (MIB loading, SNMP requests) never runs on the JavaFX application thread.
 - SNMP4J stays inside `core.snmp`; the public API uses `SnmpValue`, `VarBindResult` and `SnmpException`.
   Secrets (communities, passphrases) are never logged or included in `toString()`.
-- Version stays `0.1.0` during initial development. Record changes in `CHANGELOG.md` under `[0.1.0]`,
-  in the section of the current milestone (`### M<n> — <title>`), as a general summary of what was built.
+- The version lives in `buildSrc` (`snmptool.java-conventions`); releases are tagged `vMAJOR.MINOR.PATCH`
+  (first release `v1.0.0`). Record changes in `CHANGELOG.md` under `[Unreleased]` (Added / Changed / Fixed /
+  Removed), as a general summary; change the version and tag only when asked to release.
 - Keep docs in `docs/` in sync when a design changes.
 - Commit only when asked. Conventional-style subjects (`feat:`, `fix:`, `docs:`, `build:`, `test:`, `refactor:`).
